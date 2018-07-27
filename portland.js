@@ -18,31 +18,49 @@ const is = (i, c) => {
 const Direction = { LEFT: Symbol(), UP: Symbol(), RIGHT: Symbol(), DOWN: Symbol() };
 
 const PortletController = class {
-    constructor(inputInterpreter, portland) {
+    constructor(inputInterpreter, portlandManager) {
         if(!is(inputInterpreter, InputInterpreter)) err();
-        if(!is(portland, Portland)) err();
+        if(!is(portlandManager, PortlandManager)) err();
         
-        prop(this, { inputInterpreter, portland });
+        prop(this, { inputInterpreter, portlandManager });
         this.listener = e => { e.stopPropagation(); this._control(e); };
     }
-    initialize() {
-        this.portland.initializeAll(this.inputInterpreter.eventType, this.listener);
+    initialize(portlandId) {
+        this._initialize(portlandId, false);
+    }
+    changeTheWorld(portlandId) {
+        this._initialize(portlandId, true);
     }
     refresh(portlet) {
+        this._checkInitialized();
         if(!is(portlet, Portlet)) err();
-        this.portland.initialize(this.inputInterpreter.eventType, this.listener, portlet);
+        
+        this.portland.initializePartial(this.inputInterpreter.eventType, this.listener, portlet);
     }
     portlize(dom, x, y, w, h) {
         if(!dom || !dom.dataset || isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) err();
         dom.dataset.portlet = `${x} ${y} ${w} ${h}`;
     }
     portlet(dom) {
+        this._checkInitialized();
         if(!dom) err();
+        
         let a = null;
         this.portland.portlets.some(p => { if(p.dom === dom) return a = p; });
         return a;
     }
+    _checkInitialized() {
+        if(!this.portland) err('not initialized');
+    }
+    _initialize(portlandId, maintainState) {
+        this.portland = this.portlandManager.get(portlandId);
+        if(!this.portland) err('invalid portlandId');
+        this.portlandManager.active(portlandId);
+        if(!maintainState || !this.portland.initialized) this.portland.initialize(this.inputInterpreter.eventType, this.listener);
+    }
     _control(event) {
+        this._checkInitialized();
+        
         const { command, target, input } = this.inputInterpreter.interpret(event, this.portland.portlets);
         
         if(!command) return;
@@ -75,7 +93,7 @@ const PortletController = class {
                 break;
             default: err();
         }
-    }
+    }    
 };
 
 const InputInterpreter = class {
@@ -89,7 +107,7 @@ const KeyboardInputInterpreter = class extends InputInterpreter {
         
         portlets.some(p => { if(p.dom === event.target) return target = p; });
 
-        switch(true) {            
+        switch(true) {
             case event.ctrlKey:
                 command = InputInterpreter.command.CHANGE_LOCATION;
                 input = KeyboardInputInterpreter.direction[event.keyCode];
@@ -122,20 +140,46 @@ const KeyboardInputInterpreter = class extends InputInterpreter {
 KeyboardInputInterpreter.direction = { 37: Direction.LEFT, 38: Direction.UP, 39: Direction.RIGHT, 40: Direction.DOWN };
 KeyboardInputInterpreter.number = { 48: 0, 49: 1, 50: 2, 51: 3, 52: 4, 53: 5, 54: 6, 55: 7, 56: 8, 57: 9 };
 
+const PortlandManager = class {
+    constructor() {
+        this._initialize();
+    }
+    _initialize() {
+        this.portlands = [];
+        const domes = document.querySelectorAll('[data-portland]');
+        for(const d of domes) {
+            d.style.display = 'none';
+            const pland = new Portland(d, new GeometryCalculator(), new AnimationSelector(), new Renderer());
+            this.portlands.push(pland);
+        }
+    }
+    get(id) {
+        for(const pland of this.portlands)
+            if(pland.id === id) return pland;
+        return null;
+    }
+    active(id) {
+        if(this.activated) this.activated.die();
+        this.activated = this.get(id).live();
+    }
+};
+
 const Portland = class {
-    constructor(geometryCalculator, animationSelector, renderer) {
-        if(!is(geometryCalculator, GeometryCalculator)) err();        
+    constructor(dom, geometryCalculator, animationSelector, renderer) {
+        if(!is(geometryCalculator, GeometryCalculator)) err();
         if(!is(animationSelector, AnimationSelector)) err();
         if(!is(renderer, Renderer)) err();
 
-        prop(this, { geometryCalculator, animationSelector, renderer });
+        prop(this, { dom, geometryCalculator, animationSelector, renderer, id: dom.dataset.portland, initialized: false });
     }
-    initializeAll(eventType, listener) {
+    initialize(eventType, listener) {
+        this.initialized = true;
         this.portlets = [];
-        this.root = new Portlet(0, 0, Portlet.divideN, Portlet.divideN, document.querySelector('body'));
-        this.initialize(eventType, listener, this.root);
+        this.root = new Portlet(0, 0, Portlet.divideN, Portlet.divideN, this.dom);
+        this.initializePartial(eventType, listener, this.root);
     }
-    initialize(eventType, listener, parent) {
+    initializePartial(eventType, listener, parent){
+        if(!this.initialized) err('Not initialized');
         if(parent == this.root) window.addEventListener(eventType, listener);
         
         const domes = parent.dom.querySelectorAll(':scope > [data-portlet]');
@@ -149,7 +193,7 @@ const Portland = class {
             this.portlets.push(p);
             this.renderer.render(p);
 
-            this.initialize(eventType, listener, p);
+            this.initializePartial(eventType, listener, p);
         }
     }
     changeLocation(target, direction) {
@@ -166,7 +210,7 @@ const Portland = class {
             t.portlet.size(t.w, t.h);
             const animation = t.dom === target ? this.animationSelector.get(AnimationSelector.type.TARGET) : this.animationSelector.get(AnimationSelector.type.OTHER);
                         
-            this.renderer.render(t.portlet, animation);            
+            this.renderer.render(t.portlet, animation);
         }
     }
     contains(number) {
@@ -218,6 +262,14 @@ const Portland = class {
     }
     showPortletNumbers() {
         // TODO
+    }
+    live() {
+        this.dom.style.display = '';
+        return this;
+    }
+    die() {
+        this.dom.style.display = 'none';
+        return this;
     }
 };
 
@@ -513,13 +565,15 @@ Portlet.cssText = `
 `;
 
 return {
-    start(options) {
+    start(portlandId, options) {
+        if(!portlandId) err('invald portlandId');
+
         if(options && options.divideN) Portlet.divideN = options.divideN;
         if(options && options.margin) Portlet.margin = options.margin;
         if(options && options.cssText) Portlet.cssText = options.cssText;
         
-        const pc = new PortletController(new KeyboardInputInterpreter(), new Portland(new GeometryCalculator(), new AnimationSelector(), new Renderer()));
-        pc.initialize();
+        const pc = new PortletController(new KeyboardInputInterpreter(), new PortlandManager());
+        pc.initialize(portlandId);
         
         return pc;
     }    
