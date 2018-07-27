@@ -2,7 +2,7 @@ const Portland = (() => {
 
 const round2 = n => parseFloat(n.toFixed(2));
 const prop = (t, o) => Object.assign(t, o);
-const err = msg => { throw (msg || 'Invalid'); };
+const err = msg => { throw (msg || 'invalid type'); };
 const override = _ => err('override');
 const is = (i, c) => {
     if(typeof c === 'object')
@@ -23,9 +23,24 @@ const PortletController = class {
         if(!is(portland, Portland)) err();
         
         prop(this, { inputInterpreter, portland });
+        this.listener = e => { e.stopPropagation(); this._control(e); };
     }
     initialize() {
-        this.portland.initialize(this.inputInterpreter.eventType, e => { e.stopPropagation(); this._control(e); });
+        this.portland.initializeAll(this.inputInterpreter.eventType, this.listener);
+    }
+    refresh(portlet) {
+        if(!is(portlet, Portlet)) err();
+        this.portland.initialize(this.inputInterpreter.eventType, this.listener, portlet);
+    }
+    portlize(dom, x, y, w, h) {
+        if(!dom || !dom.dataset || isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) err();
+        dom.dataset.portlet = `${x} ${y} ${w} ${h}`;
+    }
+    portlet(dom) {
+        if(!dom) err();
+        let a = null;
+        this.portland.portlets.some(p => { if(p.dom === dom) return a = p; });
+        return a;
     }
     _control(event) {
         const { command, target, input } = this.inputInterpreter.interpret(event, this.portland.portlets);
@@ -41,20 +56,22 @@ const PortletController = class {
                 if(!is(target, Portlet) || !is(input, Direction)) return;
                 this.portland.changeSize(target, input);
                 break;
-            case InputInterpreter.command.FOCUS_AND_HIDE:
+            case InputInterpreter.command.FOCUS:
                 const number = input;
                 if(isNaN(number)) this.portland.showPortletNumbers();
                 else {
-                    if(!this.portland.contains(number)) return;
-                    
-                    if(this.portland.isFocus(number)) this.portland.hide(number);
-                    else {
-                        if(this.portland.isHide(number))
-                            this.portland.show(number);
-                        else
-                            this.portland.focus(number);
-                    }
+                    if(this.portland.contains(number))
+                        this.portland.focus(number);
+                    else
+                        return;
                 }
+                break;
+            case InputInterpreter.command.SHOW_OR_HIDE:
+                if(!is(target, Portlet) || !is(input, Direction)) return;
+                if(this.portland.isHide(target))
+                    this.portland.show(target, input);
+                else
+                    this.portland.hide(target, input);
                 break;
             default: err();
         }
@@ -65,25 +82,33 @@ const InputInterpreter = class {
     interpret(event, portlets) { override(); }
     get eventType() { override(); }
 }
-InputInterpreter.command = { CHANGE_LOCATION: Symbol(), CHANGE_SIZE: Symbol(), FOCUS_AND_HIDE: Symbol() };
+InputInterpreter.command = { CHANGE_LOCATION: Symbol(), CHANGE_SIZE: Symbol(), FOCUS: Symbol(), SHOW_OR_HIDE: Symbol() };
 const KeyboardInputInterpreter = class extends InputInterpreter {
     interpret(event, portlets) {
         let command, target, input;
         
         portlets.some(p => { if(p.dom === event.target) return target = p; });
 
-        switch(true) {
+        switch(true) {            
             case event.ctrlKey:
                 command = InputInterpreter.command.CHANGE_LOCATION;
                 input = KeyboardInputInterpreter.direction[event.keyCode];
+                event.returnValue = false;
+                break;
+            case event.shiftKey && event.altKey:
+                command = InputInterpreter.command.SHOW_OR_HIDE;
+                input = KeyboardInputInterpreter.direction[event.keyCode];
+                event.returnValue = false;
                 break;
             case event.shiftKey:
                 command = InputInterpreter.command.CHANGE_SIZE;
                 input = KeyboardInputInterpreter.direction[event.keyCode];
+                event.returnValue = false;
                 break;
             case event.altKey:
-                command = InputInterpreter.command.FOCUS_AND_HIDE;
-                input = KeyboardInputInterpreter.number[event.keyCode];                
+                command = InputInterpreter.command.FOCUS;
+                input = KeyboardInputInterpreter.number[event.keyCode];
+                event.returnValue = false;
                 break;
             default: break;
         }
@@ -105,20 +130,16 @@ const Portland = class {
 
         prop(this, { geometryCalculator, animationSelector, renderer });
     }
-    initialize(eventType, listener) {
+    initializeAll(eventType, listener) {
         this.portlets = [];
         this.root = new Portlet(0, 0, Portlet.divideN, Portlet.divideN, document.querySelector('body'));
-        this._initialize(eventType, listener, this.root);
-        this.prevListener = listener;
+        this.initialize(eventType, listener, this.root);
     }
-    _initialize(eventType, listener, parent) {
-        if(parent == this.root) {
-            if(this.prevListener) window.removeEventListener(eventType, this.prevListener);
-            window.addEventListener(eventType, listener);
-        }
+    initialize(eventType, listener, parent) {
+        if(parent == this.root) window.addEventListener(eventType, listener);
+        
         const domes = parent.dom.querySelectorAll(':scope > [data-portlet]');
         for(const d of domes) {
-            if(this.prevListener) d.removeEventListener(eventType, this.prevListener);
             d.addEventListener(eventType, listener);
             d.tabIndex = '0';
             
@@ -128,36 +149,31 @@ const Portland = class {
             this.portlets.push(p);
             this.renderer.render(p);
 
-            this._initialize(eventType, listener, p);
+            this.initialize(eventType, listener, p);
         }
     }
     changeLocation(target, direction) {
         this._change(target, direction, 'calculateLocation');
     }
-    changeSize(target, direction) {
-        this._change(target, direction, 'calculateSize');
+    changeSize(target, direction, step = 1) {
+        this._change(target, direction, 'calculateSize', step);
     }
-    _change(target, direction, method) {
-        const targets = this.geometryCalculator[method](target, direction, target.parent.children);
+    _change(target, direction, method, step) {
+        const targets = this.geometryCalculator[method](target, direction, target.parent.children, step);
         
         for(const t of targets) {
             t.portlet.location(t.x, t.y);
             t.portlet.size(t.w, t.h);
             const animation = t.dom === target ? this.animationSelector.get(AnimationSelector.type.TARGET) : this.animationSelector.get(AnimationSelector.type.OTHER);
-            this.renderer.render(t.portlet, animation);
+                        
+            this.renderer.render(t.portlet, animation);            
         }
     }
     contains(number) {
         return !!this.portlets[number];
     }
-    isFocus(number) {
-        const p = this.portlets[number];
-        if(p && p.dom === document.activeElement) return true;
-        return false;
-    }
-    isHide(number) {
-        const p = this.portlets[number];
-        if(p && p.hideW)
+    isHide(portlet) {
+        if(portlet && portlet.hide)
             return true;
         else
             return false;
@@ -165,23 +181,37 @@ const Portland = class {
     focus(number) {
         const p = this.portlets[number];
         if(p) p.dom.focus();
-    }   
-    show(number) {
-        const p = this.portlets[number];
-        if(p && p.hideW) {
-            p.w = p.hideW;
-            delete p.hideW;
-            this.renderer.render(p);
-            p.dom.focus();
+    }
+    show(portlet, direction) {
+        if(portlet && portlet.hide) {
+            switch(direction) {
+                case Direction.RIGHT:
+                    portlet.dom.style.border = portlet.hide.border;
+                    this.changeSize(portlet, Direction.RIGHT, portlet.hide.w);
+                    break;
+                case Direction.DOWN:
+                    portlet.dom.style.border = portlet.hide.border;
+                    this.changeSize(portlet, Direction.DOWN, portlet.hide.h);
+                    break;
+                default: return;
+            }
+            delete portlet.hide;
         }
     }
-    hide(number) {
-        const p = this.portlets[number];
-        if(p) {
-            p.hideW = p.w;
-            p.w = 0;
-            this.renderer.render(p);
-            p.dom.blur();
+    hide(portlet, direction) {
+        if(portlet) {
+            portlet.hide = { w: portlet.w, h: portlet.h, border: portlet.dom.style.border };
+            switch(direction) {
+                case Direction.LEFT:
+                    portlet.dom.style.border = '';
+                    this.changeSize(portlet, Direction.LEFT, portlet.hide.w);
+                    break;
+                case Direction.UP:
+                    portlet.dom.style.border = '';
+                    this.changeSize(portlet, Direction.UP, portlet.hide.h);
+                    break;
+                default: return;
+            }
         }
     }
     showPortletNumbers() {
@@ -190,7 +220,7 @@ const Portland = class {
 };
 
 const GeometryCalculator = class {
-    calculateLocation(portlet, direction, portlets) {        
+    calculateLocation(portlet, direction, portlets) {
         const result = [];
         const p1 = portlet;
         const p2 = this._findSecondTarget(p1, direction, portlets);
@@ -227,20 +257,20 @@ const GeometryCalculator = class {
             let passedPolicy = false;
             switch(direction) {
                 case Direction.LEFT:
-                    const policy_hEqual_leftThan = p1.y === p.y && p1.h === p.h && p1.x > p.x;
-                    passedPolicy = policy_hEqual_leftThan && (!p2 || p.x > p2.x);
+                    const policy_yhEqual_leftThan = p1.y === p.y && p1.h === p.h && p1.x > p.x;
+                    passedPolicy = policy_yhEqual_leftThan && (!p2 || p.x > p2.x);
                     break;
                 case Direction.UP:
-                    const policy_wEqual_upThan = p1.x === p.x && p1.w === p.w && p1.y > p.y;
-                    passedPolicy = policy_wEqual_upThan && (!p2 || p.y > p2.y);
+                    const policy_xwEqual_upThan = p1.x === p.x && p1.w === p.w && p1.y > p.y;
+                    passedPolicy = policy_xwEqual_upThan && (!p2 || p.y > p2.y);
                     break;
                 case Direction.RIGHT:
-                    const policy_hEqual_rightThan = p1.y === p.y && p1.h === p.h && p1.x < p.x;
-                    passedPolicy = policy_hEqual_rightThan && (!p2 || p.x < p2.x);
+                    const policy_yhEqual_rightThan = p1.y === p.y && p1.h === p.h && p1.x < p.x;
+                    passedPolicy = policy_yhEqual_rightThan && (!p2 || p.x < p2.x);
                     break;
                 case Direction.DOWN:
-                    const policy_wEqual_downThan = p1.x === p.x && p1.w === p.w && p1.y < p.y;
-                    passedPolicy = policy_wEqual_downThan && (!p2 || p.y < p2.y);
+                    const policy_xwEqual_downThan = p1.x === p.x && p1.w === p.w && p1.y < p.y;
+                    passedPolicy = policy_xwEqual_downThan && (!p2 || p.y < p2.y);
                     break;
                 default: return;
             }
@@ -277,67 +307,79 @@ const GeometryCalculator = class {
             default: return [];
         }
 
-        const sizeZero = !(p.w+stepW) || !(p.h+stepH);
-        if(sizeZero) return [];
-        else {
-            result.push({ portlet: p, x: p.x, y: p.y, w: p.w+stepW, h: p.h+stepH });
-            return result;
-        }
+        result.push({ portlet: p, x: p.x, y: p.y, w: p.w+stepW, h: p.h+stepH });
+        return result;
     }
-    _pullLeftOthers(p1, portlets, wu) {
+    _pullLeftOthers(p1, portlets, stepW) {
         const result = [];
-        for(const p2 of portlets) {
-            if(p1 === p2) continue;
+        const ps = [...portlets].sort((a, b) => { if(a.x > b.x) return -1; else return 1; });
+        
+        for(const p2 of ps) {
+            if(p1.x >= p2.x) break;
 
-            if(p1.x < p2.x) {
-                const collisionVertical = (p1.y <= p2.y && p1.y+p1.h > p2.y) || (p1.y < p2.y+p2.h && p1.y+p1.h >= p2.y+p2.h);
-                if(collisionVertical) result.push({ portlet: p2, x: p2.x+wu, y: p2.y, w: p2.w, h: p2.h });
+            const collisionVertical = (p1.y <= p2.y && p1.y+p1.h > p2.y) || (p1.y < p2.y+p2.h && p1.y+p1.h >= p2.y+p2.h);
+            if(collisionVertical) {
+                const r = { portlet: p2, x: p2.x+stepW, y: p2.y, w: p2.w, h: p2.h };
+                if(!p2.hide && p2.x === ps[0].x) r.w -= stepW;
+                result.push(r);
             }
         }
+        
         return result;
     }
-    _pullUpOthers(p1, portlets, hu) {
+    _pullUpOthers(p1, portlets, stepH) {
         const result = [];
-        for(const p2 of portlets) {
-            if(p1 === p2) continue;
+        const ps = [...portlets].sort((a, b) => { if(a.y > b.y) return -1; else return 1; });
 
-            if(p1.y < p2.y) {
-                const collisionHorizontal = (p1.x <= p2.x && p1.x+p1.w > p2.x) || (p1.x < p2.x+p2.w && p1.x+p1.w >= p2.x+p2.w);
-                if(collisionHorizontal) result.push({ portlet: p2, x: p2.x, y: p2.y+hu, w: p2.w, h: p2.h });
+        for(const p2 of ps) {
+            if(p1.y >= p2.y) break;
+
+            const collisionHorizontal = (p1.x <= p2.x && p1.x+p1.w > p2.x) || (p1.x < p2.x+p2.w && p1.x+p1.w >= p2.x+p2.w);
+            if(collisionHorizontal) {
+                const r = { portlet: p2, x: p2.x, y: p2.y+stepH, w: p2.w, h: p2.h };
+                if(!p2.hide && p2.y === ps[0].y) r.h -= stepH;
+                result.push(r);
             }
         }
+        
         return result;
     }
-    _pushRightOthers(p1, portlets, wu) {
+    _pushRightOthers(p1, portlets, stepW) {
         const result = [];
-        for(const p2 of portlets) {
-            if(p1 === p2) continue;
+        const ps = [...portlets].filter(e => e !== p1).sort((a, b) => { if(a.x > b.x) return -1; else return 1; });
+
+        for(const p2 of ps) {
+            if(p1.x > p2.x) break;
             
-            if(p1.x < p2.x) {
-                const collisionHorizontal = p1.x+p1.w+wu > p2.x;
-                const collisionVertical = (p1.y >= p2.y && p1.y < p2.y+p2.h) || (p2.y >= p1.y && p2.y < p1.y+p1.h);
-                if(collisionHorizontal && collisionVertical) {
-                    result.push({ portlet: p2, x: p2.x+wu, y: p2.y, w: p2.w, h: p2.h });
-                    result.push(...this._pushRightOthers(p2, portlets, wu));
-                }
+            const collisionHorizontal = p1.x+p1.w+stepW > p2.x;
+            const collisionVertical = (p1.y >= p2.y && p1.y < p2.y+p2.h) || (p2.y >= p1.y && p2.y < p1.y+p1.h);
+            if(collisionHorizontal && collisionVertical) {
+                const r = { portlet: p2, x: p2.x+stepW, y: p2.y, w: p2.w, h: p2.h };
+                if(!p2.hide && p2.x === ps[0].x) r.w -= stepW;
+                result.push(r);
+                result.push(...this._pushRightOthers(p2, ps, stepW));
             }
         }
+        
         return result;
     }
-    _pushDownOthers(p1, portlets, hu) {
+    _pushDownOthers(p1, portlets, stepH) {
         const result = [];
-        for(const p2 of portlets) {
-            if(p1 === p2) continue;
+        const ps = [...portlets].filter(e => e !== p1).sort((a, b) => { if(a.y > b.y) return -1; else return 1; });
+
+        for(const p2 of ps) {
+            if(p1.y > p2.y) break;
             
-            if(p1.y < p2.y) {
-                const collisionHorizontal = (p1.x >= p2.x && p1.x < p2.x+p2.w) || (p2.x >= p1.x && p2.x < p1.x+p1.w);
-                const collisionVertical = p1.y+p1.h+hu > p2.y;
-                if(collisionHorizontal && collisionVertical) {
-                    result.push({ portlet: p2, x: p2.x, y: p2.y+hu, w: p2.w, h: p2.h });
-                    result.push(...this._pushDownOthers(p2, portlets, hu));
-                }
+            const collisionHorizontal = (p1.x >= p2.x && p1.x < p2.x+p2.w) || (p2.x >= p1.x && p2.x < p1.x+p1.w);
+            const collisionVertical = p1.y+p1.h+stepH > p2.y;
+            if(collisionHorizontal && collisionVertical) {
+                const r = { portlet: p2, x: p2.x, y: p2.y+stepH, w: p2.w, h: p2.h };
+                if(!p2.hide && p2.y === ps[0].y) r.h -= stepH;
+                result.push(r);
+                result.push(...this._pushDownOthers(p2, ps, stepH));
             }
         }
+        
         return result;
     }    
 };
@@ -357,6 +399,9 @@ const Animation = class {
     constructor(duration = 500, timing = Animation.quad) {
         prop(this, { duration, timing });
     }
+    copy() {
+        return new Animation(this.duration, this.timing);
+    }    
     start(dom, x, y, w, h) {
         prop(this, { dom, _goalX : x, _goalY : y, _goalW : w, _goalH : h });
         
@@ -382,15 +427,16 @@ const Animation = class {
         this._subAnimate(this._startY, this._goalY, this._diffY, timeFraction, progress, 'top');
         this._subAnimate(this._startW, this._goalW, this._diffW, timeFraction, progress, 'width');
         this._subAnimate(this._startH, this._goalH, this._diffH, timeFraction, progress, 'height');
+
+        if(timeFraction < 1) requestAnimationFrame(this._animate.bind(this));
     }
     _subAnimate(start, goal, diff, timeFraction, progress, styleProp) {
         if(diff !== 0) {
             const newValue = round2(start + (diff * progress));
             
-            if(timeFraction < 1) {
+            if(timeFraction < 1)
                 this.dom.style[styleProp] = `${newValue}px`;
-                requestAnimationFrame(this._animate.bind(this));
-            } else
+            else
                 this.dom.style[styleProp] = `${goal}px`;
         }
     }
@@ -405,10 +451,11 @@ Animation.quad = timeFraction => {
 const Renderer = class {
     render(portlet, animation) {
         const p = portlet;
-        if(!p.dom.style.cssText) p.dom.style.cssText = Portlet.cssText;
+        if(!p.dom.style.cssText && !p.dom.classList.contains('portland:custom')) p.dom.style.cssText = Portlet.cssText;
 
         p.dom.style.position = 'absolute';
         p.dom.style.boxSizing = 'border-box';
+        p.dom.style.overflow = 'hidden';
 
         const {unitW, unitH, margin} = p.parent;
         const x = round2(p.x*unitW + margin);
@@ -418,8 +465,15 @@ const Renderer = class {
         
         if(animation)
             animation.start(p.dom, x, y, w, h);
-        else
-            p.setStyle(x, y, w, h);
+        else {
+            p.dom.style.left   = `${x}px`;
+            p.dom.style.top    = `${y}px`;
+            p.dom.style.width  = `${w}px`;
+            p.dom.style.height = `${h}px`;
+        }
+
+        p.updateUnit(w, h);
+        p.children.forEach(p => { this.render(p, animation.copy()); })
     }
 };
 
@@ -429,7 +483,7 @@ const Portlet = class {
         this.children = [];
         this.divideN = Portlet.divideN;
         this.margin = Portlet.margin;
-        this._updateUnit(dom.style.width||window.innerWidth, dom.style.height||window.innerHeight);
+        this.updateUnit(dom.style.width||window.innerWidth, dom.style.height||window.innerHeight);
     }
     location(x, y) {
         this.x = x;
@@ -443,26 +497,17 @@ const Portlet = class {
         this.children.push(p);
         p.parent = this;
     }
-    setStyle(left, top, width, height) {
-        this.dom.style.left   = `${left}px`;
-        this.dom.style.top    = `${top}px`;
-        this.dom.style.width  = `${width}px`;
-        this.dom.style.height = `${height}px`;
-
-        this._updateUnit(width, height);
-    }
-    _updateUnit(width, height) {
-        this.unitW = width / this.divideN;
-        this.unitH = height / this.divideN;
+    updateUnit(width, height) {
+        this.unitW = round2(width / this.divideN);
+        this.unitH = round2(height / this.divideN);
     }
 };
 Portlet.divideN = 10;
 Portlet.margin = 2;
 Portlet.cssText = `
-    box-shadow: 0 10px 6px -6px #777;
-    border-radius: 3px 3px 0 0;
     background: #fff;
-    overflow: hidden;
+    border-radius: 3px 3px 0 0;
+    box-shadow: 0 10px 6px -6px #777;
 `;
 
 return {
@@ -475,7 +520,7 @@ return {
         pc.initialize();
         
         return pc;
-    }
+    }    
 };
 
 })();
