@@ -201,16 +201,18 @@ const Portland = class {
     hide(portlet, direction) {
         if(portlet) {
             portlet.hide = { w: portlet.w, h: portlet.h, border: portlet.dom.style.border };
+            portlet.dom.style.border = '';
             switch(direction) {
                 case Direction.LEFT:
-                    portlet.dom.style.border = '';
                     this.changeSize(portlet, Direction.LEFT, portlet.hide.w);
                     break;
                 case Direction.UP:
-                    portlet.dom.style.border = '';
                     this.changeSize(portlet, Direction.UP, portlet.hide.h);
                     break;
-                default: return;
+                default:
+                    portlet.dom.style.border = portlet.hide.border;
+                    delete portlet.hide;
+                    return;
             }
         }
     }
