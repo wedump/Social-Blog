@@ -5,9 +5,6 @@ let pc;
 document.addEventListener('DOMContentLoaded', _ => execute(), false);
 
 const execute = _ => {
-    // test
-    Shortcut.add(window, [Shortcut.CTRL, Shortcut.ALT, Shortcut.N], _ => alert('hello world'));
-
     pc = Portland.start('main');
 
     const ListModel = class extends Model {
