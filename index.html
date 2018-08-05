@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Notepad</title>
+<head>
+    <script type='text/javascript' src='static/js/utils.js'></script>
+    <script type='text/javascript' src='static/js/shortcut.js'></script>
+    <script type='text/javascript' src='static/js/mvvm.js'></script>
+    <script type='text/javascript' src='static/js/portland.js'></script>
+    <script type='text/javascript' src='static/js/notepad.js'></script>
+    <link rel="stylesheet" type="text/css" href="static/css/notepad.css">
+</head>
+</head>
+<body>
+    <div data-portland="main">
+        <div data-portlet="0 0 2 10" id="notes"></div>
+        <div data-portlet="2 0 8 10" id="viewer"></div>
+        <div data-portlet="10 0 0 10" id="editor">
+            <div><input id="title" type="text" placeholder="제목 없음"/></div>
+            <textarea id="contents" placeholder="내용을 입력하세요"></textarea>
+        </div>
+    </div>
+</body>
+</html>
