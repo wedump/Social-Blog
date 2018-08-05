@@ -1,2 +1,2 @@
-# Portland
-Web Front-End Layout Framework
+# Social-Blog
+Social Blog Platform
