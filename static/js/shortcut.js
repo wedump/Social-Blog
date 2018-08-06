@@ -16,8 +16,10 @@ initKeys(numericKeys, '0', '9', '_');
 initKeys(englishKeys, 'A', 'Z');
 
 const add = (element, keys, callback) => {
+    const capturing = element === window;
+
     element.addEventListener('keydown', e => {
-        e.stopPropagation();
+        if(!capturing) e.stopPropagation();
         
         let ok = true;
         for(const k of keys) {
@@ -40,7 +42,7 @@ const add = (element, keys, callback) => {
             e.returnValue = false;
             callback();
         }
-    });
+    }, capturing);
 };
 
 return { add, ...combinationKeys, ...directionKeys, ...numericKeys, ...englishKeys };

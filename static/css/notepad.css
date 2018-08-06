@@ -4,3 +4,5 @@ body { background: #ccc; }
 .note {}
 .title {}
 .contents {}
+#editor input { display: block; }
+#editor textarea {}

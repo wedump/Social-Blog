@@ -1,6 +1,7 @@
 const Portland = (() => {
 
 const Direction = { LEFT: Symbol(), UP: Symbol(), RIGHT: Symbol(), DOWN: Symbol() };
+const HORIOZNTAL = Symbol(), VERTICAL = Symbol();
 
 const PortletController = class {
     constructor(inputInterpreter, portlandManager) {
@@ -22,8 +23,9 @@ const PortletController = class {
         this.portlandManager.active(portlandId);
         if(!maintainState || !this.portland.initialized) this.portland.initialize(this.inputInterpreter.eventType, this.listener);
     }
-    refresh(portlet) {
+    refresh(base) {
         this._checkInitialized();
+        const portlet = this._portlet(base);
         if(!is(portlet, Portlet)) err();
         
         this.portland.initializePartial(this.inputInterpreter.eventType, this.listener, portlet);
@@ -32,12 +34,36 @@ const PortletController = class {
         if(!dom || !dom.dataset || isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) err();
         dom.dataset.portlet = `${x} ${y} ${w} ${h}`;
     }
-    portlet(dom) {
+    show(base, direction = HORIOZNTAL) {
         this._checkInitialized();
-        if(!dom) err();
+
+        switch(direction) {
+            case HORIOZNTAL: direction = Direction.RIGHT; break;
+            case VERTICAL: direction = Direction.DOWN; break;
+            default: err();
+        }
+        
+        const portlet = this._portlet(base);
+        this.portland.show(portlet, direction);
+    }
+    hide(base, direction = HORIOZNTAL) {
+        this._checkInitialized();
+        
+        switch(direction) {
+            case HORIOZNTAL: direction = Direction.LEFT; break;
+            case VERTICAL: direction = Direction.UP; break;
+            default: err();
+        }
+
+        const portlet = this._portlet(base);
+        this.portland.hide(portlet, direction);
+    }
+    _portlet(base) {
+        const element = sel(base);
+        if(!element) err();
         
         let a = null;
-        this.portland.portlets.some(p => { if(p.dom === dom) return a = p; });
+        this.portland.portlets.some(p => { if(p.dom === element.dom) return a = p; });
         return a;
     }
     _checkInitialized() {
@@ -96,17 +122,17 @@ const KeyboardInputInterpreter = class extends InputInterpreter {
             case event.ctrlKey:
                 command = InputInterpreter.command.CHANGE_LOCATION;
                 input = KeyboardInputInterpreter.direction[event.keyCode];
-                event.returnValue = false;
+                if(target) event.returnValue = false;
                 break;
             case event.shiftKey && event.altKey:
                 command = InputInterpreter.command.SHOW_OR_HIDE;
                 input = KeyboardInputInterpreter.direction[event.keyCode];
-                event.returnValue = false;
+                if(target) event.returnValue = false;
                 break;
             case event.shiftKey:
                 command = InputInterpreter.command.CHANGE_SIZE;
                 input = KeyboardInputInterpreter.direction[event.keyCode];
-                event.returnValue = false;
+                if(target) event.returnValue = false;
                 break;
             case event.altKey:
                 command = InputInterpreter.command.FOCUS;
@@ -619,6 +645,7 @@ Portlet.cssText = `
 `;
 
 return {
+    HORIOZNTAL, VERTICAL,
     start(portlandId, options) {
         if(!portlandId) err('invald portlandId');
 
@@ -630,7 +657,7 @@ return {
         pc.initialize(portlandId);
         
         return pc;
-    }    
+    }
 };
 
 })();

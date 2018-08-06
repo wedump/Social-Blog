@@ -22,6 +22,9 @@ const Element = class {
         prop(this, { _dom, _children: [] });
     }
     get dom() { return this._dom; }
+    get(attrName) {
+        return this.dom[attrName];
+    }
     attr(...arg) {
         for(let i = 0; i < arg.length; i += 2)
             this.dom[arg[i]] = arg[i+1];

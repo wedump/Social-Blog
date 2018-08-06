@@ -9,11 +9,13 @@ const Singleton = (_ => {
 })();
 
 const Subject = class extends Set {
-    add(o) {
+    add() { err(); }
+    delete() { err(); }    
+    addObserver(o) {
         if(!is(o, Observer)) err();
         super.add(o);
-    }
-    delete(o) {
+    }    
+    deleteObserver(o) {
         if(!is(o, Observer)) err();
         super.delete(o);
     }
@@ -22,7 +24,7 @@ const Subject = class extends Set {
         return super.has(o);
     }
     notify(...arg) {
-        super.forEach(o => arg.length ? o.observe(...arg) : o.observe(this));
+        super.forEach(o => o.observe(...arg));
     }
 };
 
@@ -63,10 +65,10 @@ const View = class extends Observer {
     get viewModel() { return this._viewModel; }
     set viewModel(_viewModel) {
         prop(this, { _viewModel });
-        _viewModel.add(this);
+        _viewModel.addObserver(this);
     }
     observe(...arg) { this.render(...arg); }
-    render(...arg) { override(); }
+    render() { override(); }
 };
 
 const ViewModelObserver = class extends Observer {
@@ -74,7 +76,7 @@ const ViewModelObserver = class extends Observer {
         super();
         prop(this, { _viewModel });
     }
-    observe(model) { this._viewModel.observe(model); }
+    observe(...arg) { this._viewModel.observe(...arg); }
 };
 
 const ViewModel = class extends Subject {
@@ -86,5 +88,5 @@ const ViewModel = class extends Subject {
     }
     get observer() { return this._observer; }
     base() { override(); }
-    observe(model) { override(); }
+    observe() { override(); }
 };
