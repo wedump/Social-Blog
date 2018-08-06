@@ -15,10 +15,9 @@ const englishKeys = {};
 initKeys(numericKeys, '0', '9', '_');
 initKeys(englishKeys, 'A', 'Z');
 
-const add = (element, keys, callback) => {
-    const capturing = element === window;
-
-    element.addEventListener('keydown', e => {
+const applyEvent = (dom, keys, callback) => {
+    const capturing = dom === window;
+    dom.addEventListener('keydown', e => {
         if(!capturing) e.stopPropagation();
         
         let ok = true;
@@ -43,6 +42,24 @@ const add = (element, keys, callback) => {
             callback();
         }
     }, capturing);
+};
+
+const executor = (target, keys, callback) => {
+    switch(true) {
+        case is(target, Array):
+            target.forEach(v => executor(v, keys, callback));
+            break;
+        case is(target, Element):
+            applyEvent(target.dom, keys, callback);
+            break;
+        default:
+            applyEvent(target, keys, callback);
+            break;
+    }
+};
+
+const add = (target, keys, callback) => {
+    executor(target, keys, callback);
 };
 
 return { add, ...combinationKeys, ...directionKeys, ...numericKeys, ...englishKeys };

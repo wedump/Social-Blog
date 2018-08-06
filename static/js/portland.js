@@ -37,26 +37,62 @@ const PortletController = class {
     show(base, direction = HORIOZNTAL) {
         this._checkInitialized();
 
+        const portlet = this._portlet(base);
+        if(!portlet) err();
+
+        if(!this.portland.isHide(portlet)) return;
+
         switch(direction) {
             case HORIOZNTAL: direction = Direction.RIGHT; break;
             case VERTICAL: direction = Direction.DOWN; break;
             default: err();
         }
-        
-        const portlet = this._portlet(base);
         this.portland.show(portlet, direction);
     }
     hide(base, direction = HORIOZNTAL) {
         this._checkInitialized();
+        const portlet = this._portlet(base);
+        if(!portlet) err();
+
+        if(this.portland.isHide(portlet)) return;
         
         switch(direction) {
             case HORIOZNTAL: direction = Direction.LEFT; break;
             case VERTICAL: direction = Direction.UP; break;
             default: err();
         }
-
-        const portlet = this._portlet(base);
         this.portland.hide(portlet, direction);
+    }
+    isHide(base) {
+        this._checkInitialized();
+        const portlet = this._portlet(base);
+        if(!portlet) err();
+
+        return this.portland.isHide(portlet);
+    }
+    sizeUp(base, direction = HORIOZNTAL, step = 1) {
+        this._checkInitialized();
+        const portlet = this._portlet(base);
+        if(!portlet) err();
+
+        switch(direction) {
+            case HORIOZNTAL: direction = Direction.RIGHT; break;
+            case VERTICAL: direction = Direction.DOWN; break;
+            default: err();
+        }
+        this.portland.changeSize(portlet, direction, step);
+    }
+    sizeDown(base, direction = HORIOZNTAL, step = 1) {
+        this._checkInitialized();
+        const portlet = this._portlet(base);
+        if(!portlet) err();
+
+        switch(direction) {
+            case HORIOZNTAL: direction = Direction.LEFT; break;
+            case VERTICAL: direction = Direction.UP; break;
+            default: err();
+        }
+        this.portland.changeSize(portlet, direction, step);
     }
     _portlet(base) {
         const element = sel(base);
@@ -221,11 +257,10 @@ const Portland = class {
         
         this._change(target, direction, 'calculateLocation');
     }
-    changeSize(target, direction) {
+    changeSize(target, direction, step = 1) {
         if(!is(target, Portlet)) err();
         if(!is(direction, Direction)) err();
         
-        const step = 1;
         if(target.hide || this.geometryCalculator.willZeroSize(target, direction, step)) return;
         this._changeSize(target, direction, step);
     }

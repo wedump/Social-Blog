@@ -1,11 +1,9 @@
-let pc;
-
 (_ => {
 
 document.addEventListener('DOMContentLoaded', _ => execute(), false);
 
 const execute = _ => {
-    pc = Portland.start('main');
+    const pc = Portland.start('main');
 
     const ListModel = class extends Model {
         constructor() {
@@ -14,7 +12,8 @@ const execute = _ => {
         }
         _load() {
             // tmp
-            this._list = [new NoteModel(1, 'title01', 'contents01'), new NoteModel(2, 'title02', 'contents02'), new NoteModel(3, 'title03', 'contents03')];
+            this._id = 0;
+            this._list = [new NoteModel(this._id++, 'title01', 'contents01'), new NoteModel(this._id++, 'title02', 'contents02'), new NoteModel(this._id++, 'title03', 'contents03')];
             // TODO: get list from server
         }
         get(id) {
@@ -24,7 +23,7 @@ const execute = _ => {
         }
         add(title, contents) {
             //tmp
-            const id = 4;
+            const id = this._id++;
             // TODO: save to server and get id
 
             this.list.push(new NoteModel(id, title, contents));
@@ -53,7 +52,7 @@ const execute = _ => {
         constructor(base) {
             super(base, true);
         }
-        render(notes, id) {            
+        render(notes, id) {
             let active;
             const ul = el('ul');
             
@@ -85,7 +84,7 @@ const execute = _ => {
     };
     const EditorView = class extends View {
         constructor(base) {
-            super(base, true);
+            super(base, true);            
         }
         render(id, title = '', contents = '') {
             const input = el('input').attr('name', 'title', 'type', 'text', 'placeholder', 'No Title', 'value', title);
@@ -93,8 +92,8 @@ const execute = _ => {
 
             this.element.attr('innerHTML', '').append(el('form').append(input, textarea));
             input.fire('focus');
-            
-            Shortcut.add(this.element.dom, [Shortcut.CTRL, Shortcut.S], _ => app.route('editor:save', id, input.get('value'), textarea.get('value'), pc));
+
+            Shortcut.add([input, textarea], [Shortcut.CTRL, Shortcut.S], _ => this.viewModel.$save(pc, id, input.get('value'), textarea.get('value')));
         }
     };
 
@@ -145,19 +144,29 @@ const execute = _ => {
             
             this.notify();
         }
-        save(id, title, contents, pc) {
+        new_reference(pc) {
+            pc.hide('#notes');
+            pc.sizeDown('#viewer', Portland.HORIOZNTAL, 5);
+            pc.show('#editor');
+
+            this.notify();
+        }
+        observe(model) {
+            if(!is(model, NoteModel)) err();
+            this.notify(model.id, model.title, model.contents);
+        }
+        $save(pc, id, title, contents) {
             pc.hide('#editor');
             pc.show('#notes');
-            pc.show('#viewer');
+            if(pc.isHide('#viewer'))
+                pc.show('#viewer');
+            else
+                pc.sizeUp('#viewer', Portland.HORIOZNTAL, 5);
             
             if(id)
                 new ListModel().get(id).edit(title, contents);
             else
                 new ListModel().add(title, contents);
-        }
-        observe(model) {
-            if(!is(model, NoteModel)) err();
-            this.notify(model.title, model.contents);
         }
     };
 
@@ -167,7 +176,8 @@ const execute = _ => {
     app.add('editor', _ => new EditorVM(), _ => new EditorView('#editor'));
     app.route('list');
 
-    Shortcut.add(window, [Shortcut.CTRL, Shortcut.ALT, Shortcut.N], _ => app.route('editor:new', pc));
+    Shortcut.add(window, [Shortcut.ALT, Shortcut.CTRL, Shortcut.N], _ => app.route('editor:new', pc));
+    Shortcut.add(window, [Shortcut.ALT, Shortcut.SHIFT, Shortcut.N], _ => app.route('editor:new_reference', pc));
 };
 
 })();
