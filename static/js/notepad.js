@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', _ => execute(), false);
 
 const execute = _ => {
     const pc = Portland.start('main');
+    pc.saveMacro(0);
 
     const ListModel = class extends Model {
         constructor() {
@@ -84,11 +85,11 @@ const execute = _ => {
     };
     const EditorView = class extends View {
         constructor(base) {
-            super(base, true);            
+            super(base, true);
         }
         render(id, title = '', contents = '') {
-            const input = el('input').attr('name', 'title', 'type', 'text', 'placeholder', 'No Title', 'value', title);
-            const textarea = el('textarea').attr('name', 'contents', 'placeholder', 'Write your content', 'value', contents);
+            const input = el('input').attr('name', 'title', 'type', 'text', 'placeholder', 'No Title', 'value', title).event(pc.eventType, pc.listener);
+            const textarea = el('textarea').attr('name', 'contents', 'placeholder', 'Write your content', 'value', contents).event(pc.eventType, pc.listener);
 
             this.element.attr('innerHTML', '').append(el('form').append(input, textarea));
             input.fire('focus');
@@ -156,12 +157,7 @@ const execute = _ => {
             this.notify(model.id, model.title, model.contents);
         }
         $save(pc, id, title, contents) {
-            pc.hide('#editor');
-            pc.show('#notes');
-            if(pc.isHide('#viewer'))
-                pc.show('#viewer');
-            else
-                pc.sizeUp('#viewer', Portland.HORIOZNTAL, 5);
+            pc.loadMacro(0);
             
             if(id)
                 new ListModel().get(id).edit(title, contents);
@@ -178,6 +174,8 @@ const execute = _ => {
 
     Shortcut.add(window, [Shortcut.ALT, Shortcut.CTRL, Shortcut.N], _ => app.route('editor:new', pc));
     Shortcut.add(window, [Shortcut.ALT, Shortcut.SHIFT, Shortcut.N], _ => app.route('editor:new_reference', pc));
+    Shortcut.add(window, [Shortcut.SHIFT, Shortcut.S, Shortcut.NUMBER], number => pc.saveMacro(number));
+    Shortcut.add(window, [Shortcut.SHIFT, Shortcut.NUMBER], number => pc.loadMacro(number));
 };
 
 })();

@@ -8,13 +8,32 @@ const override = _ => err('override');
 
 const is = (i, c) => {
     if(typeof c === 'object')
-        return Object.entries(c).some(([k, v]) => { if(v === i) return true; });
+        return Object.entries(c).some(([k, v]) => v === i);
     else {
         if(i)
             return i instanceof c;
         else
             return false;
     }
+};
+
+const aop = (target, beforeExcept, beforeCallback, afterExcept, afterCallback) => {
+    return new Proxy(target, {
+        get(obj, prop, receiver) {
+            let value = Reflect.get(obj, prop, receiver);
+            
+            if(typeof value === 'function') {
+                value = (...arg) => {
+                    if(beforeExcept && beforeCallback && !beforeExcept.test(prop)) beforeCallback(obj);
+                    const result = Reflect.apply(obj[prop], obj, arg);
+                    if(afterExcept && afterCallback && !afterExcept.test(prop)) afterCallback(obj);
+                    return result;
+                };
+            }
+            
+            return value;
+        }
+    });
 };
 
 const Element = class {

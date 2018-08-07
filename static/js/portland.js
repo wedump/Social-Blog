@@ -11,6 +11,7 @@ const PortletController = class {
         prop(this, { inputInterpreter, portlandManager });
         this.listener = e => { e.stopPropagation(); this._control(e); };
     }
+    get eventType() { return this.inputInterpreter.eventType; }
     initialize(portlandId) {
         this._initialize(portlandId, false);
     }
@@ -21,10 +22,9 @@ const PortletController = class {
         this.portland = this.portlandManager.get(portlandId);
         if(!this.portland) err('invalid portlandId');
         this.portlandManager.active(portlandId);
-        if(!maintainState || !this.portland.initialized) this.portland.initialize(this.inputInterpreter.eventType, this.listener);
+        if(!maintainState || !this.portland.initialized) this.portland.initialize(this.eventType, this.listener);
     }
     refresh(base) {
-        this._checkInitialized();
         const portlet = this._portlet(base);
         if(!is(portlet, Portlet)) err();
         
@@ -35,8 +35,6 @@ const PortletController = class {
         dom.dataset.portlet = `${x} ${y} ${w} ${h}`;
     }
     show(base, direction = HORIOZNTAL) {
-        this._checkInitialized();
-
         const portlet = this._portlet(base);
         if(!portlet) err();
 
@@ -50,7 +48,6 @@ const PortletController = class {
         this.portland.show(portlet, direction);
     }
     hide(base, direction = HORIOZNTAL) {
-        this._checkInitialized();
         const portlet = this._portlet(base);
         if(!portlet) err();
 
@@ -64,14 +61,12 @@ const PortletController = class {
         this.portland.hide(portlet, direction);
     }
     isHide(base) {
-        this._checkInitialized();
         const portlet = this._portlet(base);
         if(!portlet) err();
 
         return this.portland.isHide(portlet);
     }
     sizeUp(base, direction = HORIOZNTAL, step = 1) {
-        this._checkInitialized();
         const portlet = this._portlet(base);
         if(!portlet) err();
 
@@ -83,7 +78,6 @@ const PortletController = class {
         this.portland.changeSize(portlet, direction, step);
     }
     sizeDown(base, direction = HORIOZNTAL, step = 1) {
-        this._checkInitialized();
         const portlet = this._portlet(base);
         if(!portlet) err();
 
@@ -93,6 +87,13 @@ const PortletController = class {
             default: err();
         }
         this.portland.changeSize(portlet, direction, step);
+    }
+    saveMacro(number) {
+        // target = portland > portlets
+        // portland.toJson -> JSON.strnigify(obj) -> save
+    }
+    loadMacro(number) {
+        // JSON.parse(str) -> restore(with animation)
     }
     _portlet(base) {
         const element = sel(base);
@@ -338,6 +339,16 @@ const Portland = class {
     }
     showPortletNumbers() {
         // TODO
+    }
+    toJson() {
+        // TODO
+        const result = [];
+        
+        for(const p of this.portlets) {
+            
+        }
+
+        return result;
     }
 };
 
@@ -691,7 +702,7 @@ return {
         const pc = new PortletController(new KeyboardInputInterpreter(), new PortlandManager());
         pc.initialize(portlandId);
         
-        return pc;
+        return aop(pc, /^(initialize)$|^_+/, target => target._checkInitialized());
     }
 };
 

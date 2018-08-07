@@ -15,12 +15,23 @@ const englishKeys = {};
 initKeys(numericKeys, '0', '9', '_');
 initKeys(englishKeys, 'A', 'Z');
 
+const Groups = { NUMBER: numericKeys, ENGLISH: englishKeys, DIRECTION: directionKeys };
+
 const applyEvent = (dom, keys, callback) => {
+    const activeKeys = new Set();
     const capturing = dom === window;
+    
+    dom.addEventListener('keyup', e => {
+        if(!capturing) e.stopPropagation();
+        activeKeys.delete(e.keyCode);
+    }, capturing);
+    
     dom.addEventListener('keydown', e => {
         if(!capturing) e.stopPropagation();
+        activeKeys.add(e.keyCode);
         
         let ok = true;
+        let groupKey;
         for(const k of keys) {
             switch(true) {
                 case k === combinationKeys.CTRL:
@@ -32,14 +43,23 @@ const applyEvent = (dom, keys, callback) => {
                 case k === combinationKeys.SHIFT:
                     if(!e.shiftKey) ok = false;
                     break;
+                case is(k, Groups):
+                    Object.entries(k).some(([k, v]) => { if(activeKeys.has(v)) return groupKey = [k.replace('_', ''), v]; });
+                    if(!groupKey) ok = false;
+                    break;
                 default:
-                    if(k !== e.keyCode) ok = false;
+                    if(!activeKeys.has(k)) ok = false;
                     break;
             }
         }        
         if(ok) {
             e.returnValue = false;
-            callback();
+            activeKeys.clear();
+            
+            if(groupKey)
+                callback(groupKey[0], groupKey[1]);
+            else
+                callback();
         }
     }, capturing);
 };
@@ -62,6 +82,6 @@ const add = (target, keys, callback) => {
     executor(target, keys, callback);
 };
 
-return { add, ...combinationKeys, ...directionKeys, ...numericKeys, ...englishKeys };
+return { add, ...combinationKeys, ...directionKeys, ...numericKeys, ...englishKeys, ...Groups };
 
 })();
