@@ -24,8 +24,8 @@ const PortletController = class {
         this.portlandManager.active(portlandId);
         if(!maintainState || !this.portland.initialized) this.portland.initialize(this.eventType, this.listener);
     }
-    refresh(base) {
-        const portlet = this._portlet(base);
+    refresh(id) {
+        const portlet = this._portlet(id);
         if(!is(portlet, Portlet)) err();
         
         this.portland.initializePartial(this.inputInterpreter.eventType, this.listener, portlet);
@@ -34,8 +34,8 @@ const PortletController = class {
         if(!dom || !dom.dataset || isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) err();
         dom.dataset.portlet = `${x} ${y} ${w} ${h}`;
     }
-    show(base, direction = HORIOZNTAL) {
-        const portlet = this._portlet(base);
+    show(id, direction = HORIOZNTAL) {
+        const portlet = this._portlet(id);
         if(!portlet) err();
 
         if(!this.portland.isHide(portlet)) return;
@@ -47,8 +47,8 @@ const PortletController = class {
         }
         this.portland.show(portlet, direction);
     }
-    hide(base, direction = HORIOZNTAL) {
-        const portlet = this._portlet(base);
+    hide(id, direction = HORIOZNTAL) {
+        const portlet = this._portlet(id);
         if(!portlet) err();
 
         if(this.portland.isHide(portlet)) return;
@@ -60,14 +60,14 @@ const PortletController = class {
         }
         this.portland.hide(portlet, direction);
     }
-    isHide(base) {
-        const portlet = this._portlet(base);
+    isHide(id) {
+        const portlet = this._portlet(id);
         if(!portlet) err();
 
         return this.portland.isHide(portlet);
     }
-    sizeUp(base, direction = HORIOZNTAL, step = 1) {
-        const portlet = this._portlet(base);
+    sizeUp(id, direction = HORIOZNTAL, step = 1) {
+        const portlet = this._portlet(id);
         if(!portlet) err();
 
         switch(direction) {
@@ -77,8 +77,8 @@ const PortletController = class {
         }
         this.portland.changeSize(portlet, direction, step);
     }
-    sizeDown(base, direction = HORIOZNTAL, step = 1) {
-        const portlet = this._portlet(base);
+    sizeDown(id, direction = HORIOZNTAL, step = 1) {
+        const portlet = this._portlet(id);
         if(!portlet) err();
 
         switch(direction) {
@@ -88,15 +88,14 @@ const PortletController = class {
         }
         this.portland.changeSize(portlet, direction, step);
     }
-    saveMacro(number) {
-        // target = portland > portlets
-        // portland.toJson -> JSON.strnigify(obj) -> save
+    capture() {
+        return this.portland.save();
     }
-    loadMacro(number) {
-        // JSON.parse(str) -> restore(with animation)
+    load(data) {
+        this.portland.restore(data);
     }
-    _portlet(base) {
-        const element = sel(base);
+    _portlet(id) {
+        const element = sel(`#${id}`);
         if(!element) err();
         
         let a = null;
@@ -217,8 +216,9 @@ const Portland = class {
         if(!is(animationSelector, AnimationSelector)) err();
         if(!is(renderer, Renderer)) err();
 
-        prop(this, { dom, geometryCalculator, animationSelector, renderer, id: dom.dataset.portland, initialized: false });
+        prop(this, { dom, geometryCalculator, animationSelector, renderer, initialized: false });
     }
+    get id() { return this.dom.id; }
     die() {
         this.dom.style.display = 'none';
         return this;
@@ -340,14 +340,46 @@ const Portland = class {
     showPortletNumbers() {
         // TODO
     }
-    toJson() {
-        // TODO
-        const result = [];
+    save() {
+        return JSON.stringify(this);
+    }
+    restore(data) {
+        const portlets = [];
+        const instances = new Map();
+        const saved = JSON.parse(data);
         
-        for(const p of this.portlets) {
+        for(const obj of saved) {
+            let p = instances.get(obj.id);
+            if(!p) {
+                const dom = document.querySelector(obj.base);
+                if(!dom) err('not found dom');
+                p = new Portlet(obj.x, obj.y, obj.w, obj.h, dom);
+                instances.set((p.id = obj.id), p);
+            }
             
-        }
+            if(obj.parent.id) {
+                let parent = instances.get(obj.parent.id);
+                if(!parent) {
+                    const dom = document.querySelector(obj.parent.base);
+                    if(!dom) err('not found dom');
+                    parent = new Portlet(obj.parent.x, obj.parent.y, obj.parent.w, obj.parent.h, dom);
+                    instances.set(obj.parent.id, parent);
+                }
+                p.parent = parent;
+                parent.children.push(p);
+            }
 
+            portlets.push(p);
+        }
+        
+        for(const p of portlets)
+            this.renderer.render(p, this.animationSelector.get(AnimationSelector.type.OTHER));
+        
+        this.portlets = portlets;
+    }
+    toJSON() {
+        const result = [];
+        for(const p of this.portlets) result.push(p.toJSON());
         return result;
     }
 };
@@ -659,12 +691,14 @@ const Renderer = class {
 
 const Portlet = class {
     constructor(x, y, w, h, dom) {
-        prop(this, { x, y, w, h, dom });        
+        prop(this, { x, y, w, h, dom });
+        this._id = Date.now() + '-' + Math.random() * 1000000;
         this.children = [];
         this.divideN = Portlet.divideN;
         this.margin = Portlet.margin;
         this.updateUnit(dom.style.width||window.innerWidth, dom.style.height||window.innerHeight);
     }
+    set id(id) { this._id = id; }
     location(x, y) {
         this.x = x;
         this.y = y;
@@ -681,6 +715,16 @@ const Portlet = class {
         this.unitW = round2(width / this.divideN);
         this.unitH = round2(height / this.divideN);
     }
+    toJSON() {
+        if(!this.dom.id) err(`need dom's id`);
+        const result = {
+            id: this._id,
+            x: this.x, y: this.y, w: this.w, h: this.h,
+            base: `#${this.dom.id}`,
+            parent: this.parent ? this.parent.toJSON() : null
+        };
+        return result;
+    }
 };
 Portlet.divideN = 10;
 Portlet.margin = 4;
@@ -693,7 +737,7 @@ Portlet.cssText = `
 return {
     HORIOZNTAL, VERTICAL,
     start(portlandId, options) {
-        if(!portlandId) err('invald portlandId');
+        if(!portlandId) err(`invald portland's id`);
 
         if(options && options.divideN) Portlet.divideN = options.divideN;
         if(options && options.margin) Portlet.margin = options.margin;
