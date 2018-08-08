@@ -354,6 +354,7 @@ const Portland = class {
                 const dom = document.querySelector(obj.base);
                 if(!dom) err('not found dom');
                 p = new Portlet(obj.x, obj.y, obj.w, obj.h, dom);
+                if(obj.hide) p.hide = obj.hide;
                 instances.set((p.id = obj.id), p);
             }
             
@@ -363,6 +364,7 @@ const Portland = class {
                     const dom = document.querySelector(obj.parent.base);
                     if(!dom) err('not found dom');
                     parent = new Portlet(obj.parent.x, obj.parent.y, obj.parent.w, obj.parent.h, dom);
+                    if(obj.parent.hide) parent.hide = obj.parent.hide;
                     instances.set(obj.parent.id, parent);
                 }
                 p.parent = parent;
@@ -721,7 +723,8 @@ const Portlet = class {
             id: this._id,
             x: this.x, y: this.y, w: this.w, h: this.h,
             base: `#${this.dom.id}`,
-            parent: this.parent ? this.parent.toJSON() : null
+            parent: this.parent ? this.parent.toJSON() : null,
+            hide: this.hide
         };
         return result;
     }
