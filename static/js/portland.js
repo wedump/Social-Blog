@@ -749,7 +749,7 @@ return {
         const pc = new PortletController(new KeyboardInputInterpreter(), new PortlandManager());
         pc.initialize(portlandId);
         
-        return aop(pc, /^(initialize)$|^_+/, target => target._checkInitialized());
+        return aop(pc, { beforeExcept: /^(initialize)$|^_+/, beforeFn: target => target._checkInitialized() });
     }
 };
 

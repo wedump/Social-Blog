@@ -17,16 +17,16 @@ const is = (i, c) => {
     }
 };
 
-const aop = (target, beforeExcept, beforeCallback, afterExcept, afterCallback) => {
+const aop = (target, { beforeExcept, beforeFn, afterExcept, afterFn }) => {
     return new Proxy(target, {
         get(obj, prop, receiver) {
             let value = Reflect.get(obj, prop, receiver);
             
             if(typeof value === 'function') {
                 value = (...arg) => {
-                    if(beforeExcept && beforeCallback && !beforeExcept.test(prop)) beforeCallback(obj);
+                    if(beforeExcept && beforeFn && !beforeExcept.test(prop)) beforeFn(obj);
                     const result = Reflect.apply(obj[prop], obj, arg);
-                    if(afterExcept && afterCallback && !afterExcept.test(prop)) afterCallback(obj);
+                    if(afterExcept && afterFn && !afterExcept.test(prop)) afterFn(obj);
                     return result;
                 };
             }

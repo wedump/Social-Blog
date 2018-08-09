@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', _ => execute(), false);
 
 const execute = _ => {
     const pc = Portland.start('main');
-    const basic = pc.capture(0);
+    const basic = pc.capture();
     const macro = [basic];
 
     const ListModel = class extends Model {
@@ -175,7 +175,7 @@ const execute = _ => {
 
     Shortcut.add(window, [Shortcut.ALT, Shortcut.CTRL, Shortcut.N], _ => app.route('editor:new', pc));
     Shortcut.add(window, [Shortcut.ALT, Shortcut.SHIFT, Shortcut.N], _ => app.route('editor:new_reference', pc));
-    Shortcut.add(window, [Shortcut.SHIFT, Shortcut.S, Shortcut.NUMBER], number => macro[number] = pc.capture(number));
+    Shortcut.add(window, [Shortcut.SHIFT, Shortcut.S, Shortcut.NUMBER], number => macro[number] = pc.capture());
     Shortcut.add(window, [Shortcut.SHIFT, Shortcut.NUMBER], number => pc.load(macro[number]));
 };
 
