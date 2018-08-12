@@ -11,7 +11,7 @@ const PortletController = class {
         prop(this, { inputInterpreter, portlandManager });
         this.listener = e => { e.stopPropagation(); this._control(e); };
     }
-    get eventType() { return this.inputInterpreter.eventType; }
+    get eventTypes() { return this.inputInterpreter.eventTypes; }
     initialize(portlandId) {
         this._initialize(portlandId, false);
     }
@@ -22,13 +22,13 @@ const PortletController = class {
         this.portland = this.portlandManager.get(portlandId);
         if(!this.portland) err('invalid portlandId');
         this.portlandManager.active(portlandId);
-        if(!maintainState || !this.portland.initialized) this.portland.initialize(this.eventType, this.listener);
+        if(!maintainState || !this.portland.initialized) this.portland.initialize(this.eventTypes, this.listener);
     }
     refresh(id) {
         const portlet = this._portlet(id);
         if(!is(portlet, Portlet)) err();
         
-        this.portland.initializePartial(this.inputInterpreter.eventType, this.listener, portlet);
+        this.portland.initializePartial(this.eventTypes, this.listener, portlet);
     }
     portlize(dom, x, y, w, h) {
         if(!dom || !dom.dataset || isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) err();
@@ -121,9 +121,15 @@ const PortletController = class {
                 if(!is(target, Portlet) || !is(input, Direction)) return;
                 this.portland.changeSize(target, input);
                 break;
+            case InputInterpreter.command.DISPLAY_BADGES:
+                if(input)
+                    this.portland.showBadges();
+                else
+                    this.portland.hideBadges();
+                break;
             case InputInterpreter.command.FOCUS:
                 const number = input;
-                if(isNaN(number)) this.portland.showPortletNumbers();
+                if(isNaN(number)) this.portland.toggleBadge();
                 else {
                     if(this.portland.contains(number))
                         this.portland.focus(number);
@@ -145,16 +151,22 @@ const PortletController = class {
 
 const InputInterpreter = class {
     interpret(event, portlets) { override(); }
-    get eventType() { override(); }
+    get eventTypes() { override(); }
 }
-InputInterpreter.command = { CHANGE_LOCATION: Symbol(), CHANGE_SIZE: Symbol(), FOCUS: Symbol(), SHOW_OR_HIDE: Symbol() };
+InputInterpreter.command = { CHANGE_LOCATION: Symbol(), CHANGE_SIZE: Symbol(), DISPLAY_BADGES: Symbol(), FOCUS: Symbol(), SHOW_OR_HIDE: Symbol() };
 const KeyboardInputInterpreter = class extends InputInterpreter {
-    interpret(event, portlets) {
+    interpret(event, portlets) {        
+        return this[`_${event.type}`](event, portlets);
+    }
+    get eventTypes() {
+        return ['keydown', 'keyup'];
+    }
+    _keydown(event, portlets) {
         let command, target, input;
         
         portlets.some(p => { if(p.dom === event.target) return target = p; });
 
-        switch(true) {
+         switch(true) {
             case event.ctrlKey:
                 command = InputInterpreter.command.CHANGE_LOCATION;
                 input = KeyboardInputInterpreter.direction[event.keyCode];
@@ -171,21 +183,30 @@ const KeyboardInputInterpreter = class extends InputInterpreter {
                 if(target) event.returnValue = false;
                 break;
             case event.altKey:
-                command = InputInterpreter.command.FOCUS;
-                input = KeyboardInputInterpreter.number[event.keyCode];
+                if((input = KeyboardInputInterpreter.number[event.keyCode]))
+                    command = InputInterpreter.command.FOCUS;
+                else {
+                    command = InputInterpreter.command.DISPLAY_BADGES;
+                    input = true;
+                }
                 event.returnValue = false;
                 break;
             default: break;
         }
-        
+
         return { command, target, input };
     }
-    get eventType() {
-        return 'keydown';
+    _keyup(event, portlets) {
+        if(event.keyCode === KeyboardInputInterpreter.alt)
+            return { command: InputInterpreter.command.DISPLAY_BADGES, input: false };
+        else
+            return {};
     }
 };
 KeyboardInputInterpreter.direction = { 37: Direction.LEFT, 38: Direction.UP, 39: Direction.RIGHT, 40: Direction.DOWN };
 KeyboardInputInterpreter.number = { 48: 0, 49: 1, 50: 2, 51: 3, 52: 4, 53: 5, 54: 6, 55: 7, 56: 8, 57: 9 };
+KeyboardInputInterpreter.alt = 18;
+
 
 const PortlandManager = class {
     constructor() {
@@ -227,20 +248,19 @@ const Portland = class {
         this.dom.style.display = '';
         return this;
     }    
-    initialize(eventType, listener) {
+    initialize(eventTypes, listener) {
         this.initialized = true;
         this.portlets = [];
         this.root = new Portlet(0, 0, Portlet.divideN, Portlet.divideN, this.dom);
-        this.initializePartial(eventType, listener, this.root);
+        this.initializePartial(eventTypes, listener, this.root);
     }
-    initializePartial(eventType, listener, parent){
+    initializePartial(eventTypes, listener, parent){
         if(!this.initialized) err('not initialized');
-        if(parent == this.root) window.addEventListener(eventType, listener);
-        
+        if(parent == this.root) sel(window).event(eventTypes, listener);
+
         const domes = parent.dom.querySelectorAll(':scope > [data-portlet]');
         for(const d of domes) {
-            d.addEventListener(eventType, listener);
-            d.tabIndex = '0';
+            sel(d).event(eventTypes, listener).attr('tabIndex', '0');
             
             const [x, y, w, h] = d.dataset.portlet.split(' ').map(e => parseFloat(e));
             const p = new Portlet(x, y, w, h, d);
@@ -249,7 +269,7 @@ const Portland = class {
             this.portlets.push(p);
             this.renderer.render(p);
 
-            this.initializePartial(eventType, listener, p);
+            this.initializePartial(eventTypes, listener, p);
         }
     }
     changeLocation(target, direction) {
@@ -280,7 +300,7 @@ const Portland = class {
         }
     }
     contains(number) {
-        return !!this.portlets[number];
+        return !!this.portlets[number-1];
     }
     isHide(portlet) {
         if(portlet && portlet.hide)
@@ -289,7 +309,7 @@ const Portland = class {
             return false;
     }
     focus(number) {
-        const p = this.portlets[number];
+        const p = this.portlets[number-1];
         if(p) p.dom.focus();
     }
     show(portlet, direction) {
@@ -337,8 +357,13 @@ const Portland = class {
             delete portlet.hide;
         }
     }
-    showPortletNumbers() {
-        // TODO
+    showBadges() {
+        for(const i in this.portlets)
+            this.portlets[i].showBadge(parseInt(i)+1);
+    }
+    hideBadges() {
+        for(const i in this.portlets)
+            this.portlets[i].hideBadge();
     }
     save() {
         return JSON.stringify(this);
@@ -694,10 +719,13 @@ const Renderer = class {
 const Portlet = class {
     constructor(x, y, w, h, dom) {
         prop(this, { x, y, w, h, dom });
+        
         this._id = Date.now() + '-' + Math.random() * 1000000;
         this.children = [];
         this.divideN = Portlet.divideN;
-        this.margin = Portlet.margin;
+        this.margin = Portlet.margin;        
+        this._badge = el('span').style('cssText', Portlet.badge.cssText);
+        
         this.updateUnit(dom.style.width||window.innerWidth, dom.style.height||window.innerHeight);
     }
     set id(id) { this._id = id; }
@@ -728,6 +756,13 @@ const Portlet = class {
         };
         return result;
     }
+    showBadge(number) {
+        this.dom.append(this._badge.dom);
+        this._badge.attr('textContent', number).show();
+    }
+    hideBadge() {
+        this._badge.hide();
+    }
 };
 Portlet.divideN = 10;
 Portlet.margin = 4;
@@ -736,6 +771,24 @@ Portlet.cssText = `
     border-radius: 3px 3px 0 0;
     box-shadow: 0 10px 6px -6px #777;
 `;
+Portlet.badge = { cssText: `
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    padding: 5px;
+    margin: 5px;
+    border: 1px solid #d2d2d2;
+    border-radius: 30px;
+    width: 24px;
+    height: 24px;
+    text-align: center;
+    vertical-align: middle;
+    background: #ffffffd4;
+    box-shadow: 1px 1px 1px 1px black;
+    font-weight: bold;
+    transition: easy;
+    display: none;
+`};
 
 return {
     HORIOZNTAL, VERTICAL,

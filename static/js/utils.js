@@ -63,12 +63,14 @@ const Element = class {
         }
         return this;
     }
-    event(...arg) {
-        for(let i = 0; i < arg.length; i += 2)
-            this.dom.addEventListener(arg[i], arg[i+1]);
+    event(eventTypes, listener) {
+        if(is(eventTypes, Array))
+            eventTypes.forEach(type => this.dom.addEventListener(type, listener));
+        else
+            this.dom.addEventListener(eventTypes, listener)
         return this;
     }
-    first() {        
+    first() {
         return this._children[0];
     }
     last() {
@@ -78,10 +80,33 @@ const Element = class {
         this.dom[eventType]();
         return this;
     }
+    style(...arg) {
+        for(let i = 0; i < arg.length; i += 2)
+            this.dom.style[arg[i]] = arg[i+1];
+        return this;
+    }
+    show() {
+        this.dom.style.display = '';
+    }
+    hide() {
+        this.dom.style.display = 'none';
+    }
+    toggle() {
+        if(this.dom.style.display === 'none')
+            this.show();
+        else
+            this.hide();
+    }
 };
-const sel = base => {
-    const dom = document.querySelector(base);
-    return new Element(dom);
+const sel = target => {
+    switch(true) {
+        case typeof target === 'string':
+            const dom = document.querySelector(target);
+            return new Element(dom);
+        case typeof target === 'object':
+            return new Element(target);
+        default: break;
+    }   
 };
 const el = tagName => {
     const dom = document.createElement(tagName);
