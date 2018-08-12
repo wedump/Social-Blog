@@ -127,15 +127,8 @@ const PortletController = class {
                 else
                     this.portland.hideBadges();
                 break;
-            case InputInterpreter.command.FOCUS:
-                const number = input;
-                if(isNaN(number)) this.portland.toggleBadge();
-                else {
-                    if(this.portland.contains(number))
-                        this.portland.focus(number);
-                    else
-                        return;
-                }
+            case InputInterpreter.command.FOCUS:                
+                this.portland.focus(input);
                 break;
             case InputInterpreter.command.SHOW_OR_HIDE:
                 if(!is(target, Portlet) || !is(input, Direction)) return;
@@ -197,9 +190,10 @@ const KeyboardInputInterpreter = class extends InputInterpreter {
         return { command, target, input };
     }
     _keyup(event, portlets) {
-        if(event.keyCode === KeyboardInputInterpreter.alt)
+        if(event.keyCode === KeyboardInputInterpreter.alt) {
+            event.returnValue = false;
             return { command: InputInterpreter.command.DISPLAY_BADGES, input: false };
-        else
+        } else
             return {};
     }
 };
@@ -298,9 +292,6 @@ const Portland = class {
 
             this.renderer.render(t.portlet, animation);
         }
-    }
-    contains(number) {
-        return !!this.portlets[number-1];
     }
     isHide(portlet) {
         if(portlet && portlet.hide)
