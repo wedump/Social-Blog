@@ -64,10 +64,10 @@ const applyEvent = (dom, keys, callback) => {
     }, capturing);
 };
 
-const executor = (target, keys, callback) => {
+const add = (target, keys, callback) => {
     switch(true) {
         case is(target, Array):
-            target.forEach(v => executor(v, keys, callback));
+            target.forEach(v => add(v, keys, callback));
             break;
         case is(target, Element):
             applyEvent(target.dom, keys, callback);
@@ -76,10 +76,6 @@ const executor = (target, keys, callback) => {
             applyEvent(target, keys, callback);
             break;
     }
-};
-
-const add = (target, keys, callback) => {
-    executor(target, keys, callback);
 };
 
 return { add, ...combinationKeys, ...directionKeys, ...numericKeys, ...englishKeys, ...Groups };
