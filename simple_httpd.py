@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 
-import json, urllib.parse, simple_router
+import os, json, urllib.parse, simple_router
 from wsgiref.simple_server import make_server, WSGIServer, WSGIRequestHandler
 from socketserver import ThreadingMixIn
+from importlib import import_module
 
 encoding = 'utf-8'
 log_file = open( 'log/simple.log', 'a' )
@@ -34,7 +35,14 @@ class SimpleRequestHandler( WSGIRequestHandler ):
 	def log_message( self, format, *args ):
 		log_file.write( '%s - - [%s] %s\n' % ( self.address_string(), self.log_date_time_string(), format%args ) )
 
+def initController():
+	base_package = 'cgi-bin'
+	targets = os.listdir(base_package)
+	for v in targets:
+		import_module(base_package + '.' + v.replace('.py', ''))
+
 try:
+	initController()
 	httpd = make_server( '', 8000, simple_router.route, ThreadedWSGIServer, SimpleRequestHandler )
 	print( 'Starting simple_httpd on port ' + str( httpd.server_port ) )
 	httpd.serve_forever()

@@ -1,13 +1,13 @@
 #!/usr/bin/python3
 
-import os, time
+import os, time, sys
 from io import StringIO
 from importlib import import_module
-import sys
+from app import App
 
 sys.path.append( './' )
 
-base_package = 'cgi-bin'
+app = App()
 default_page = 'index.html'
 encoding = 'utf-8'
 weekdayname = [ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' ]
@@ -58,8 +58,12 @@ def do_static( path, extension, start_response ):
 		raise
 
 def do_dynamic( path, environ, start_response, stdout ):
-	import_module( base_package + '.' + path.replace( '/', '.' ) ).process( environ.get( 'REQUEST_PAYLOAD' ), Response( stdout ) )
-	start_response( '200 OK', [ ( 'Content-Type', 'text/json; charset' + encoding ) ] )
+	print(path)
+	if path in app.router:
+		app.router[path]( environ.get( 'REQUEST_PAYLOAD' ), Response( stdout ) )
+		start_response( '200 OK', [ ( 'Content-Type', 'text/json; charset' + encoding ) ] )
+	else:
+		start_response( '404 Not Found', [ ( 'Content-Type', 'text/json; charset' + encoding ) ] )
 
 	return [ stdout.getvalue().encode( encoding ) ]
 
