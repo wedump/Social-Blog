@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import os, time, sys
 from io import StringIO
 from importlib import import_module
@@ -57,14 +55,46 @@ def do_static( path, extension, start_response ):
 		f.close()
 		raise
 
-def do_dynamic( path, environ, start_response, stdout ):	
-	if path in app.router:
-		app.router[path]( environ.get( 'REQUEST_PAYLOAD' ), Response( stdout ) )
+def do_dynamic( path, environ, start_response, stdout ):
+	method = environ.get( 'REQUEST_METHOD' )
+	request = environ.get( 'REQUEST_PAYLOAD' )
+	module = get_routing_module(app.router, path, method, request)
+	
+	if module:
+		module( request, Response( stdout ) )
 		start_response( '200 OK', [ ( 'Content-Type', 'text/json; charset' + encoding ) ] )
 	else:
 		start_response( '404 Not Found', [ ( 'Content-Type', 'text/json; charset' + encoding ) ] )
 
 	return [ stdout.getvalue().encode( encoding ) ]
+
+def get_routing_module( router, path, method, request ):
+	path_separator = '/'
+	param_flag_start = '${'
+	param_flag_end = '}'
+
+	request_paths = path.split( path_separator )
+	path_len = len( request_paths )
+
+	for k in router:
+		(p, m) = k
+		router_paths = p.split( path_separator )
+		if len( router_paths ) != path_len: continue
+		
+		matched = True
+		for i in range( path_len ):
+			rop, rep = router_paths[ i ], request_paths[ i ]
+			
+			if rop.startswith( param_flag_start ):
+				key = rop.replace( param_flag_start, '' ).replace( param_flag_end, '' )
+				request[ key ] = rep
+				continue
+			if rop != rep:
+				matched = False
+				break
+
+		if matched and m == method:
+			return router[ k ]
 
 def get_ctype( extension ):
 	return extensions_map.get( extension, '' )

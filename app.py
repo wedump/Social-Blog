@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+from enum import Enum
 
 def singleton(clazz):
   instances = {}
@@ -8,9 +8,9 @@ def singleton(clazz):
     return instances[clazz]
   return getInstance
 
-def throughDecorator(router, path):
-    def decorator(origin):		
-        router[path] = origin
+def throughDecorator(router, path, methods):
+    def decorator(origin):
+        for m in methods: router[(path, m.value)] = origin
         def wrapper(*args, **kwargs):
             return origin(*args, **kwargs)
         return wrapper
@@ -20,5 +20,11 @@ def throughDecorator(router, path):
 class App:
     def __init__(self):
         self.router = {}
-    def route(self, path):
-        return throughDecorator(self.router, path)
+    def route(self, path, methods):
+        return throughDecorator(self.router, path, methods)
+
+class HttpMethod(Enum):
+    GET = 'GET'
+    POST = 'POST'
+    PUT = 'PUT'
+    DELETE = 'DELETE'
