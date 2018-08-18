@@ -36,14 +36,14 @@ class SimpleRequestHandler( WSGIRequestHandler ):
 	def log_message( self, format, *args ):
 		log_file.write( '%s - - [%s] %s\n' % ( self.address_string(), self.log_date_time_string(), format%args ) )
 
-def initController():
+def init_controller():
 	base_package = 'cgi-bin'
 	targets = os.listdir(base_package)
 	for v in targets:
 		import_module(base_package + '.' + v.replace('.py', ''))
 
 try:
-	initController()
+	init_controller()
 	httpd = make_server( '', 8000, simple_router.route, ThreadedWSGIServer, SimpleRequestHandler )
 	print( 'Starting simple_httpd on port ' + str( httpd.server_port ) )
 	httpd.serve_forever()
