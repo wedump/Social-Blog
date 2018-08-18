@@ -57,8 +57,7 @@ def do_static( path, extension, start_response ):
 		f.close()
 		raise
 
-def do_dynamic( path, environ, start_response, stdout ):
-	print(path)
+def do_dynamic( path, environ, start_response, stdout ):	
 	if path in app.router:
 		app.router[path]( environ.get( 'REQUEST_PAYLOAD' ), Response( stdout ) )
 		start_response( '200 OK', [ ( 'Content-Type', 'text/json; charset' + encoding ) ] )
