@@ -89,13 +89,18 @@ const execute = _ => {
             super(base, true);
         }
         render(id, title = '', contents = '') {
-            const input = el('input').attr('name', 'title', 'type', 'text', 'placeholder', 'No Title', 'value', title).event(pc.eventType, pc.listener);
-            const textarea = el('textarea').attr('name', 'contents', 'placeholder', 'Write your content', 'value', contents).event(pc.eventType, pc.listener);
+            const editor = WDEditor.transform('#editor');
+            // TODO: Editor객체에는 DOM이 연결되어있지 않아 아래 작업들을 진행할 수 없다
+
+            /*
+            const input = el('input').attr('name', 'title', 'type', 'text', 'placeholder', 'No Title', 'value', title).event(pc.eventTypes, pc.listener);
+            const textarea = el('textarea').attr('name', 'contents', 'placeholder', 'Write your content', 'value', contents).event(pc.eventTypes, pc.listener);
 
             this.element.attr('innerHTML', '').append(el('form').append(input, textarea));
             input.fire('focus');
 
             Shortcut.add([input, textarea], [Shortcut.CTRL, Shortcut.S], _ => this.viewModel.$save(pc, id, input.get('value'), textarea.get('value')));
+            */
         }
     };
 

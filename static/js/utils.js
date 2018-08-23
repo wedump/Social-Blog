@@ -45,8 +45,12 @@ const Element = class {
         return this.dom[attrName];
     }
     attr(...arg) {
-        for(let i = 0; i < arg.length; i += 2)
-            this.dom[arg[i]] = arg[i+1];
+        for(let i = 0; i < arg.length; i += 2) {
+            if(arg[i] in this.dom)
+                this.dom[arg[i]] = arg[i+1];
+            else
+                this.dom.setAttribute(arg[i], arg[i+1]);
+        }
         return this;
     }
     append(...arg) {
