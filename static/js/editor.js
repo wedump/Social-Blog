@@ -1,17 +1,25 @@
 const WDEditor = (_ => {
-    // Domain Layer
     const Editor = class {
-        get menu() {
-            return this._menu;
-        }
-        set menu(_menu) {
-            prop(this, { _menu });
+        constructor(_base) {
+            prop(this, { _base });
         }
         get posts() {
             return this._posts;
         }
         set posts(_posts) {
             prop(this, { _posts });
+        }
+        get menu() {
+            return this._menu;
+        }
+        set menu(_menu) {
+            prop(this, { _menu });
+        }
+        render() {
+            const element = sel(this._base).attr('innerHTML', '');
+            prop(this, { element });
+            this._posts.render(element);
+            this._menu.render(element);
         }
     };
 
@@ -27,6 +35,12 @@ const WDEditor = (_ => {
             this.paragraphs.some(p => p.id === id ? target = p : false);
             return target;
         }
+        render(parent) {
+            const element = el('section').style('display', 'inline-block', 'width', `${this.w}%`, 'height', `${this.h}%`, 'float', 'left');            
+            prop(this, { element });
+            parent.append(element);
+            for(const paragraph of this.paragraphs) paragraph.render(element);
+        }
     };
 
     const Paragraph = class {
@@ -35,6 +49,13 @@ const WDEditor = (_ => {
         }
         get placeholder() {
             return this.id;
+        }
+        render(parent) {
+            const element = el('div')
+                .style('display', 'inline-block', 'width', `${this.w}%`, 'height', `${this.h}%`, 'border', '1px dashed #ccc')
+                .attr('contentEditable', 'true', 'placeholder', this.placeholder);
+            prop(this, { element });
+            parent.append(element);
         }
     };
 
@@ -45,78 +66,39 @@ const WDEditor = (_ => {
         append(button) {
             this.buttons.push(button);
         }
+        render(parent) {
+            const element = el('section').style('display', 'inline-block', 'width', `${this.w}%`, 'height', `${this.h}%`);
+            prop(this, { element });
+            parent.append(element);
+            for(const button of this.buttons) button.render(element);
+        }
     };
 
     const Button = class {
-        constructor(command, w, h, renderer) {
-            prop(this, { command, w, h, renderer });
+        constructor(command, w, h, _render) {
+            prop(this, { command, w, h, _render });
         }
         get tooltip() {
             return this.command;
         }
-        render(element) {
-            this.renderer.render(element);
+        apply() {
+            document.execCommand(this.command);
         }
-        apply(commander) {
-            commander.execute(this.command);
-        }
-    };
-    const BoldButton = class extends Button {
-        constructor(w, h, renderer) {
-            super('bold', w, h, renderer);
-        }
-    };
-    const ItalicButton = class extends Button {
-        constructor(w, h, renderer) {
-            super('italic', w, h, renderer);
-        }
-    };
-
-    // Native Layer
-    const commander = {
-        execute(command) { document.execCommand(command) }
-    };
-    
-    const render = (base, editor) => {
-        if(!editor || !editor.menu || !editor.menu.buttons || !editor.posts || !editor.posts.paragraphs) err();
-        
-        const posts = el('section').style('display', 'inline-block', 'width', `${editor.posts.w}%`, 'height', `${editor.posts.h}%`, 'float', 'left');
-        const menu  = el('section').style('display', 'inline-block', 'width', `${editor.menu.w}%`, 'height', `${editor.menu.h}%`);        
-        sel(base).attr('innerHTML', '').append(posts, menu);
-
-        for(const paragraph of editor.posts.paragraphs) {
-            posts.append(
-                el('div')
-                    .style('display', 'inline-block', 'width', `${paragraph.w}%`, 'height', `${paragraph.h}%`, 'border', '1px dashed #ccc')
-                    .attr('contentEditable', 'true', 'placeholder', paragraph.placeholder)
-            );
-        }
-        for(const button of editor.menu.buttons) {
+        render(parent) {
             const element = el('button')
-                .style('width', `${button.w}%`, 'height', `${button.h}%`)
-                .attr('title', button.tooltip)
-                .event('click', _ => button.apply(commander));
-            menu.append(element);
-            button.render(element);
+                .style('width', `${this.w}%`, 'height', `${this.h}%`)
+                .attr('title', this.tooltip)
+                .event('click', _ => this.apply());
+            prop(this, { element });
+            parent.append(element);
+            this._render(element);
         }
     };
 
-    const boldRenderer = {
-        render(element) {
-            element.attr('textContent', 'B').style('border', '1px solid #ccc');
-        }
-    };
-    const italicRenderer = {
-        render(element) {
-            element.attr('textContent', 'I').style('border', '1px solid #ccc');
-        }
-    };
-
-    // Host Code
-    return {
-        transform(base) {            
-            const boldButton = new BoldButton(100, 10, boldRenderer);
-            const italicButton = new ItalicButton(100, 10, italicRenderer);
+    const externals = {
+        basic(base) {
+            const boldButton = new Button('bold', 100, 10, el => el.attr('textContent', 'B'));
+            const italicButton = new Button('italic', 100, 10, el => el.attr('textContent', 'I'));
             
             const menu = new Menu(10, 100);
             menu.append(boldButton);
@@ -129,13 +111,14 @@ const WDEditor = (_ => {
             posts.append(title);
             posts.append(contents);
 
-            const editor = new Editor();
+            const editor = new Editor(base);
             editor.menu = menu;
-            editor.posts = posts;
+            editor.posts = posts;            
+            editor.render();
             
-            render(base, editor);
-
             return editor;
         }
     };
+
+    return externals;
 })();
