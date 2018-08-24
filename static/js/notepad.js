@@ -88,10 +88,10 @@ const execute = _ => {
         constructor(base) {
             super(base, true);
         }
-        render(id, titleValue = '', contentsValue = '') {            
+        render(id, titleValue = '', contentsValue = '') {
             const editor = WDEditor.basic('#editor');
-            const title = editor.posts.get('title').element.attr('textContent', titleValue).fire('focus');
-            const contents = editor.posts.get('contents').element.attr('textContent', contentsValue);
+            const title = editor.posts.get('title').element.attr('textContent', titleValue).event(pc.eventTypes, pc.listener).fire('focus');
+            const contents = editor.posts.get('contents').element.attr('textContent', contentsValue).event(pc.eventTypes, pc.listener);
             Shortcut.add([title, contents], [Shortcut.CTRL, Shortcut.S], _ => this.viewModel.$save(pc, id, title.get('textContent'), contents.get('textContent')));
         }
     };
