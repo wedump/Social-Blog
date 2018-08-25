@@ -74,6 +74,10 @@ const Element = class {
             this.dom.addEventListener(eventTypes, listener)
         return this;
     }
+    trigger(eventType) {
+        this.dom.dispatchEvent(new Event(eventType));
+        return this;
+    }
     first() {
         return this._children[0];
     }
@@ -100,6 +104,19 @@ const Element = class {
             this.show();
         else
             this.hide();
+    }
+    value(v) {
+        const d = this.dom;
+        if(v === undefined)
+            return this.dom.value || this.dom.textContent;            
+        else {
+            if('value' in d) d.value = v;
+            if('textContent' in d) d.textContent = v;
+            return this;
+        }
+    }
+    sel(target) {
+        return new Element(this.dom.querySelector(target));
     }
 };
 const sel = target => {
