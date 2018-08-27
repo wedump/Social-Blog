@@ -6,6 +6,8 @@ const err = msg => { throw (msg || 'invalid'); };
 
 const override = _ => err('override');
 
+const do_nothing = _ => {};
+
 const is = (i, c) => {
     if(typeof c === 'object')
         return Object.entries(c).some(([k, v]) => v === i);
@@ -74,6 +76,13 @@ const Element = class {
             this.dom.addEventListener(eventTypes, listener)
         return this;
     }
+    unevent(eventTypes, listener) {
+        if(is(eventTypes, Array))
+            eventTypes.forEach(type => this.dom.removeEventListener(type, listener));
+        else
+            this.dom.removeEventListener(eventTypes, listener)
+        return this;
+    }
     trigger(eventType) {
         this.dom.dispatchEvent(new Event(eventType));
         return this;
@@ -117,6 +126,13 @@ const Element = class {
     }
     sel(target) {
         return new Element(this.dom.querySelector(target));
+    }
+    addStyleRule(...arg) {
+        if(this.dom.tagName !== 'STYLE') return this;
+        const sheet = this.dom.sheet;
+        const rules = sheet.cssRules;
+        for(const rule of arg) sheet.insertRule(rule, rules.length);
+        return this;
     }
 };
 const sel = target => {
