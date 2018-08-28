@@ -38,6 +38,19 @@ const aop = (target, { beforeExcept, beforeFn, afterExcept, afterFn }) => {
     });
 };
 
+const saveRanges = _ => {
+    const savedRanges = [];
+    const s = document.getSelection();
+    for(let i = 0; i < s.rangeCount; i++)
+        savedRanges[i] = s.getRangeAt(i).cloneRange();
+    return savedRanges;
+};
+const loadRanges = savedRanges => {
+    const s = document.getSelection();
+    s.removeAllRanges();
+    for(const range of savedRanges) s.addRange(range);
+};
+
 const Element = class {
     constructor(_dom = err()) {        
         prop(this, { _dom, _children: [] });
@@ -104,21 +117,27 @@ const Element = class {
     }
     show() {
         this.dom.style.display = '';
+        return this;
     }
     hide() {
         this.dom.style.display = 'none';
+        return this;
     }
     toggle() {
         if(this.dom.style.display === 'none')
             this.show();
         else
             this.hide();
+        return this;
     }
     value(v) {
         const d = this.dom;
-        if(v === undefined)
-            return this.dom.value || this.dom.textContent;            
-        else {
+        if(v === undefined) {
+            if(d.tagName === 'SELECT')
+                return d.options[d.selectedIndex].value;
+            else
+                return this.dom.value || this.dom.textContent;
+        } else {
             if('value' in d) d.value = v;
             if('textContent' in d) d.textContent = v;
             return this;
@@ -134,6 +153,9 @@ const Element = class {
         for(const rule of arg) sheet.insertRule(rule, rules.length);
         return this;
     }
+    parent() {
+        return new Element(this.dom.parentNode);
+    }
 };
 const sel = target => {
     switch(true) {
@@ -148,4 +170,7 @@ const sel = target => {
 const el = tagName => {
     const dom = document.createElement(tagName);
     return new Element(dom);
+};
+const focusElement = _ => {
+    return new Element(document.getSelection().focusNode);
 };

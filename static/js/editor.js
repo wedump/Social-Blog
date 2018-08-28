@@ -147,7 +147,7 @@ const WDEditor = (_ => {
             const faces = ['Consolas', 'Verdana', 'Georgia'];
             const select = el('select')
                 .style('width', '100%', 'height', '100%')
-                .event('change', e => this.apply(e.target.options[e.target.selectedIndex].value));
+                .event('change', e => this.apply(select.value()));
             
             for(const face of faces) select.append(el('option').value(face));
             this.element.append(select);
@@ -164,7 +164,7 @@ const WDEditor = (_ => {
             const values = { p: '본문', h1: '헤더1', h2: '헤더2', h3: '헤더3' };
             const select = el('select')
                 .style('width', '100%', 'height', '100%')
-                .event('change', e => this.apply('<' + e.target.options[e.target.selectedIndex].value + '>'));
+                .event('change', e => this.apply('<' + select.value() + '>'));
             
             Object.entries(values).forEach(([k, v]) => select.append(el('option').value(k).attr('textContent', v)));
             this.element.append(select);
@@ -182,7 +182,7 @@ const WDEditor = (_ => {
             const select = el('select')
                 .style('width', '100%', 'height', '100%')
                 .event('change', e => {
-                    const color = e.target.options[e.target.selectedIndex].value;
+                    const color = select.value();
                     select.style('color', color);
                     this.apply(color);
                 });
@@ -207,7 +207,7 @@ const WDEditor = (_ => {
             const select = el('select')
                 .style('width', '100%', 'height', '100%')
                 .event('change', e => {
-                    const color = e.target.options[e.target.selectedIndex].value;
+                    const color = select.value();
                     select.style('color', color);
                     this.apply(color);
                 });
@@ -282,38 +282,82 @@ const WDEditor = (_ => {
         }
         _render() {
             this.element.append(
-                el('button').value('L<->C').style('width', '100%', 'height', '100%').event('click', _ => this.apply())
+                el('button').value('≡').style('width', '100%', 'height', '100%').event('click', _ => this.apply())
             );
         }
         click() {
             this.element.trigger('click');
         }
     };
+    const LinkButton = class extends Button {
+        constructor(w, h) {
+            super('Link', 'createLink', w, h);
+        }
+        _render() {
+            let savedRanges = [];
+            const link = el('input').style('display', 'inline', 'width', '200px');
+            
+            const box = el('div').style('position', 'absolute', 'left', '-300px', 'width', '300px').hide().append(
+                link,
+                el('button').style('width', '45px').value('취소').event('click', _ => { loadRanges(savedRanges), box.hide(); }),
+                el('button').style('width', '45px').value('확인').event('click', _ => { loadRanges(savedRanges), box.hide(), this.apply(link.value()); })
+            );
+            
+            this.element.style('position', 'relative').append(
+                box,
+                el('button').value('∞').style('width', '100%', 'height', '100%').event('click', _ => { savedRanges = saveRanges(), box.show(), link.fire('focus'); })
+            );
+        }
+        click() {
+            this.element.trigger('click');
+        }
+    };
+    const BoxButton = class extends Button {
+        constructor(w, h) {
+            super('Box', 'formatBlock', w, h);
+        }
+        _render() {
+            this.element.append(
+                el('button').value('□').style('width', '100%', 'height', '100%')
+                    .event('click', _ => {
+                        const savedRanges = saveRanges();
+                        new EnterButton().click();
+                        loadRanges(savedRanges);
+                        this.apply(`<blockquote>`);
+                        focusElement().parent().style('display', 'block', 'border', '1px solid #ccc', 'padding', '15px');
+                    })
+            );
+        }
+        _click() {
+            this.element.trigger('click');
+        }
+    }
+    const EnterButton = class extends Button {
+        constructor() {
+            super('Enter', 'insertParagraph');
+        }
+        _render() { do_nothing(); }
+        click() { this.apply(); }
+    }
 
     const externals = {
-        basic(base) {
-            // TODO:
-            //   - items : face, size, color, block-color, align, link, box
-            //   - needs
-            //     1) simple button -> detail component(select-box, input-box) for face, size, color, block-color, link
-            //     2) toggle for align
-            //     3) insert html component(with css and applied command) for box
-            //     4) insert html component(with css) for button detail display(ex, align image)
-            
-            const faceButton = new FaceButton(100, 10);
-            const headerButton = new HeaderButton(100, 10);
-            const colorButton = new ColorButton(100, 10);
+        basic(base) {            
+            const faceButton = new FaceButton(100, 8);
+            const headerButton = new HeaderButton(100, 8);
+            const colorButton = new ColorButton(100, 8);
 
             const menu = new Menu(10, 100);
             menu.append(faceButton);
             menu.append(headerButton);
             menu.append(colorButton);
-            menu.append(new HiliteButton(100, 10));
-            menu.append(new BoldButton(100, 10));
-            menu.append(new ItalicButton(100, 10));
-            menu.append(new UnderlineButton(100, 10));
-            menu.append(new StrikeThroughButton(100, 10));
-            menu.append(new AlignButton(100, 10));
+            menu.append(new HiliteButton(100, 8));
+            menu.append(new BoldButton(100, 8));
+            menu.append(new ItalicButton(100, 8));
+            menu.append(new UnderlineButton(100, 8));
+            menu.append(new StrikeThroughButton(100, 8));
+            menu.append(new AlignButton(100, 8));
+            menu.append(new LinkButton(100, 8));
+            menu.append(new BoxButton(100, 8));
 
             const title = new SingleLineParagraph('title', 100, 10, e => { sel(e.target).attr('innerHTML', ''), faceButton.click(), colorButton.click(); });
             title.placeholder = '제목을 입력하세요';
