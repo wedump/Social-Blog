@@ -180,7 +180,7 @@ const KeyboardInputInterpreter = class extends InputInterpreter {
                     command = InputInterpreter.command.FOCUS;
                 else {
                     command = InputInterpreter.command.DISPLAY_BADGES;
-                    input = true;
+                    input = true;                    
                 }
                 event.returnValue = false;
                 break;
@@ -200,7 +200,6 @@ const KeyboardInputInterpreter = class extends InputInterpreter {
 KeyboardInputInterpreter.direction = { 37: Direction.LEFT, 38: Direction.UP, 39: Direction.RIGHT, 40: Direction.DOWN };
 KeyboardInputInterpreter.number = { 48: 0, 49: 1, 50: 2, 51: 3, 52: 4, 53: 5, 54: 6, 55: 7, 56: 8, 57: 9 };
 KeyboardInputInterpreter.alt = 18;
-
 
 const PortlandManager = class {
     constructor() {
@@ -249,8 +248,8 @@ const Portland = class {
         this.initializePartial(eventTypes, listener, this.root);
     }
     initializePartial(eventTypes, listener, parent){
-        if(!this.initialized) err('not initialized');
-        if(parent == this.root) sel(window).event(eventTypes, listener);
+        if(!this.initialized) err('not initialized');        
+        if(parent == this.root) sel(window).event(eventTypes, listener).event('blur', _ => this.hideBadges());
 
         const domes = parent.dom.querySelectorAll(':scope > [data-portlet]');
         for(const d of domes) {
