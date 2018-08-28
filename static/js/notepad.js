@@ -58,8 +58,8 @@ const execute = _ => {
             let active;
             const ul = el('ul');
             
-            for(const n of notes) {                
-                const li = el('li').attr('className', 'note', 'textContent', n.title).event('click', e => this.viewModel.$viewing(n.id));                
+            for(const n of notes) {
+                const li = el('li').attr('className', 'note', 'innerHTML', n.title).event('click', e => this.viewModel.$viewing(n.id));
                 if(n.id === id) active = li;
                 ul.append(li);
             }
@@ -78,8 +78,8 @@ const execute = _ => {
         render(title, contents) {
             this.element.attr('innerHTML', '').append(
                 el('section').append(
-                    el('h1').attr('className', 'title', 'textContent', title),
-                    el('p').attr('className', 'contents', 'textContent', contents)
+                    el('h1').attr('className', 'title', 'innerHTML', title),
+                    el('p').attr('className', 'contents', 'innerHTML', contents)
                 )
             );
         }
@@ -92,7 +92,7 @@ const execute = _ => {
             const editor = WDEditor.basic('#editor');
             const title = editor.get('title').value(titleValue).event(pc.eventTypes, pc.listener);
             const contents = editor.get('contents').value(contentsValue).event(pc.eventTypes, pc.listener).fire('focus');
-            Shortcut.add([title, contents], [Shortcut.CTRL, Shortcut.S], _ => this.viewModel.$save(pc, id, title.value(), contents.value()));
+            Shortcut.add([title, contents], [Shortcut.CTRL, Shortcut.S], _ => this.viewModel.$save(pc, id, title.get('innerHTML'), contents.get('innerHTML')));
         }
     };
 

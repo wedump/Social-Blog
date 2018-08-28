@@ -61,7 +61,7 @@ const WDEditor = (_ => {
         }
         init() {
             const listener = e => {
-                if(!sel(e.target).value()) {                    
+                if(!sel(e.target).value()) {
                     this._init(e);
                     if(e.keyCode === 8) e.returnValue = false;
                 }
