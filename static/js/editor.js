@@ -63,7 +63,9 @@ const WDEditor = (_ => {
             const listener = e => {
                 if(!sel(e.target).value()) {
                     this._init(e);
-                    if(e.keyCode === 8) e.returnValue = false;
+                    sel(e.target).fire('focus');
+                    const backspace = 8;
+                    if(e.keyCode === backspace) e.returnValue = false;
                 }
             };
             this.element.event(['focus', 'keydown', 'keyup'], listener);
