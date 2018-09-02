@@ -147,10 +147,11 @@ const Element = class {
         return new Element(this.dom.querySelector(target));
     }
     addStyleRule(...arg) {
-        if(this.dom.tagName !== 'STYLE') return this;
-        const sheet = this.dom.sheet;
-        const rules = sheet.cssRules;
-        for(const rule of arg) sheet.insertRule(rule, rules.length);
+        if(this.dom.tagName === 'STYLE') {
+            const sheet = this.dom.sheet;
+            const rules = sheet.cssRules;
+            for(const rule of arg) sheet.insertRule(rule, rules.length);
+        }
         return this;
     }
     parent() {

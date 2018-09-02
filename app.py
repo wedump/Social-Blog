@@ -8,7 +8,7 @@ def singleton(clazz):
     return instances[clazz]
   return getInstance
 
-def throughDecorator(router, path, methods):
+def routing_decorator(router, path, methods):
     def decorator(origin):
         for m in methods: router[(path, m.value)] = origin
         def wrapper(*args, **kwargs):
@@ -21,7 +21,7 @@ class App:
     def __init__(self):
         self.router = {}
     def route(self, path, methods):
-        return throughDecorator(self.router, path, methods)
+        return routing_decorator(self.router, path, methods)
 
 class HttpMethod(Enum):
     GET = 'GET'
