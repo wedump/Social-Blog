@@ -5,11 +5,11 @@ const WDEditor = (_ => {
             sel(document.head).append(this._style);
             this._style.addStyleRule(`${this._base} [contenteditable=true]:empty:before { content: attr(placeholder); color: #ccc; }`);
         }
-        get posts() {
-            return this._posts;
+        get post() {
+            return this._post;
         }
-        set posts(_posts) {
-            prop(this, { _posts });
+        set post(_post) {
+            prop(this, { _post });
         }
         get menu() {
             return this._menu;
@@ -18,18 +18,18 @@ const WDEditor = (_ => {
             prop(this, { _menu });
         }
         get(id) {
-            const paragraph = this._posts.get(id);
+            const paragraph = this._post.get(id);
             return paragraph && paragraph.element;
         }
         render() {            
             const element = sel(this._base).attr('innerHTML', '');
             prop(this, { element });
-            this._posts.render(element, this._base, this._style);
+            this._post.render(element, this._base, this._style);
             this._menu.render(element, this._base, this._style);
         }
     };
 
-    const Posts = class {
+    const Post = class {
         constructor(w, h) {
             prop(this, { w, h, paragraphs: [] });
         }
@@ -42,8 +42,8 @@ const WDEditor = (_ => {
             return target;
         }
         render(parent, base, style) {
-            const element = el('section').attr('name', 'posts').style('display', 'inline-block', 'width', `${this.w}%`, 'height', `${this.h}%`, 'float', 'left');
-            prop(this, { element, base: `${base} [name='posts']` });
+            const element = el('section').attr('name', 'post').style('display', 'inline-block', 'width', `${this.w}%`, 'height', `${this.h}%`, 'float', 'left');
+            prop(this, { element, base: `${base} [name='post']` });
             parent.append(element);
             for(const paragraph of this.paragraphs) paragraph.render(element, this.base, style);
         }
@@ -365,18 +365,18 @@ const WDEditor = (_ => {
             title.placeholder = '제목을 입력하세요';
             const contents = new MultiLineParagraph('contents', 100, 90, _ => { faceButton.click(), headerButton.click(), colorButton.click(); });
 
-            const posts = new Posts(90, 100);
-            posts.append(title);
-            posts.append(contents);
+            const post = new Post(90, 100);
+            post.append(title);
+            post.append(contents);
 
             const editor = new Editor(base);
             editor.menu = menu;
-            editor.posts = posts;
+            editor.post = post;
             editor.render();
             
             return editor;
         },
-        Editor, Posts, Paragraph, Menu, Button
+        Editor, Post, Paragraph, Menu, Button
     };
 
     return externals;
