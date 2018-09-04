@@ -760,6 +760,7 @@ Portlet.cssText = `
     background: #fff;
     border-radius: 3px 3px 0 0;
     box-shadow: 0 10px 6px -6px #777;
+    outline: none;
 `;
 Portlet.badge = { cssText: `
     position: absolute;

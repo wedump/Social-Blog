@@ -1,7 +1,48 @@
 html, body { margin: 0; padding: 0; }
 body { background: #ccc; }
 
-.note {}
+ul{
+	list-style: none;
+    padding: 0;
+    margin: 0px;
+}
+.search {
+	text-align: center;
+    padding: 1% 1% 2% 1%;
+    background-color: #F6F8FA;
+}
+.search input {
+	background-color: #F6F8FA;
+    border: 1px solid #e1e4e8;
+}
+.note {
+	font-weight: 500;
+    font-size: 14px;
+    padding: 2% 5%;
+    border-top: 1px solid #E1E4E8;
+    transition: 0.3s;
+}
+.note:last-child {
+    border-bottom: 1px solid #E1E4E8;
+}
+.note:hover {
+    background-color: #E1E4E8;
+    cursor: pointer;
+}
+.note:hover .timestamp{
+    display: block;
+    transition: 0.3s;
+    height: 100%;
+}
+span.timestamp {
+    display: none;
+    font-size: 11px;
+    margin: 2% 0 0 4%;
+    color: #03A9F4;
+    transition: 1s;
+    height: 0px;
+}
+
 .title {}
 .contents {}
 #editor input { display: block; }
